@@ -1,0 +1,4 @@
+interface:
+  display_name: "ChatGPT Pro Workforce"
+  short_description: "Orchestrate and verify ChatGPT Pro worker lanes"
+  default_prompt: "Use $chatgpt-pro-workforce; if no concrete task is supplied, start its guided kickoff and walk me through choosing a mode, inputs, worker lanes, and control route before execution."

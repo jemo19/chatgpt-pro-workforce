@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "run": {
+    "id": "RUN-EXAMPLE",
+    "title": "Synthetic workforce status",
+    "status": "DRAFT",
+    "allocation_profile": "BALANCED",
+    "codex_usage_band": "MODERATE",
+    "route": "UNKNOWN",
+    "freshness": "UNKNOWN",
+    "updated_at": "1970-01-01T00:00:00Z",
+    "next_action": "Complete guided setup"
+  },
+  "progress": [
+    {
+      "id": "scope",
+      "label": "Scope",
+      "current": 0,
+      "total": 0,
+      "state": "OPEN",
+      "detail": "No finite scope registry yet"
+    }
+  ],
+  "lanes": [],
+  "readiness": [],
+  "artifacts": [],
+  "gates": [],
+  "decisions": [],
+  "storage": {
+    "state": "UNSET",
+    "summary": "Storage is not configured",
+    "used_bytes": 0,
+    "budget_bytes": 0,
+    "artifact_count": 0,
+    "detail": "Choose a dedicated run-owned root during guided setup"
+  },
+  "notes": {
+    "state": "UNSET",
+    "summary": "Research notes are not configured",
+    "count": 0,
+    "updated_at": "1970-01-01T00:00:00Z",
+    "detail": "Choose an Obsidian or research root during guided setup"
+  },
+  "alerts": []
+}

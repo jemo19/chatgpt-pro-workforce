@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible skill, dashboard, state, or control-flow defect
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, cookies, tokens, private prompts, live conversation URLs, customer data, local usernames/paths, or unrelated screenshots. Use the Security tab for sensitive issues.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v1.0.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe the expected state transition or result.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include sanitized states and errors, not private content.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Prefer a disposable task with public or synthetic data.
+    validations:
+      required: true
+  - type: textarea
+    id: readiness
+    attributes:
+      label: Sanitized readiness evidence
+      description: Selected route, capability states, and whether the outcome was verified, failed, or unknown.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, private prompts, browser state, conversation URLs, local paths, customer data, and unrelated screenshots.
+          required: true

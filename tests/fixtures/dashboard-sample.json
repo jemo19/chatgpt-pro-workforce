@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "run": {
+    "id": "RUN-VISUAL-QA",
+    "title": "Map resilient local AI control",
+    "status": "ACTIVE",
+    "allocation_profile": "PRO_HEAVY",
+    "codex_usage_band": "LOWEST",
+    "route": "BROWSER_WITH_MANUAL_DESKTOP",
+    "freshness": "CURRENT",
+    "updated_at": "2026-08-31T02:42:18Z",
+    "next_action": "Reconcile conflicting evidence from lanes L02 and L04"
+  },
+  "progress": [
+    {
+      "id": "scope",
+      "label": "Scope",
+      "current": 7,
+      "total": 9,
+      "state": "ACTIVE",
+      "detail": "seven approved questions addressed"
+    },
+    {
+      "id": "workers",
+      "label": "Workers",
+      "current": 3,
+      "total": 5,
+      "state": "ACTIVE",
+      "detail": "three lanes reached a terminal disposition"
+    },
+    {
+      "id": "artifacts",
+      "label": "Artifacts",
+      "current": 4,
+      "total": 6,
+      "state": "ACTIVE",
+      "detail": "four expected files recovered and identified"
+    },
+    {
+      "id": "validation",
+      "label": "Validation",
+      "current": 5,
+      "total": 8,
+      "state": "ACTIVE",
+      "detail": "mechanical and semantic checks"
+    },
+    {
+      "id": "acceptance",
+      "label": "Acceptance",
+      "current": 2,
+      "total": 5,
+      "state": "ACTIVE",
+      "detail": "two lane outcomes accepted"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "L01",
+      "name": "Control surface inventory",
+      "state": "ACCEPTED",
+      "owner": "ChatGPT Pro",
+      "summary": "Mapped browser, accessibility, window, screenshot, and manual routes with evidence.",
+      "last_observed_at": "2026-08-31T02:38:04Z",
+      "next_action": "Closed"
+    },
+    {
+      "id": "L02",
+      "name": "Linux adapter reliability",
+      "state": "RUNNING",
+      "owner": "ChatGPT Pro",
+      "summary": "Testing failure boundaries for semantic targets, verified focus, and portal screenshots.",
+      "last_observed_at": "2026-08-31T02:41:55Z",
+      "next_action": "Wait for completion marker"
+    },
+    {
+      "id": "L03",
+      "name": "Artifact recovery",
+      "state": "PARTIAL",
+      "owner": "ChatGPT Pro",
+      "summary": "Native attachment returned; one browser-managed download remains blocked.",
+      "last_observed_at": "2026-08-31T02:40:12Z",
+      "next_action": "Use verified manual dialog handoff"
+    },
+    {
+      "id": "L04",
+      "name": "Adversarial review",
+      "state": "RETURNED",
+      "owner": "ChatGPT Pro",
+      "summary": "Found a conflict in the focus-verification claim that needs primary-evidence adjudication.",
+      "last_observed_at": "2026-08-31T02:41:02Z",
+      "next_action": "Compare against L02 evidence"
+    }
+  ],
+  "readiness": [
+    {
+      "id": "C05",
+      "label": "Chrome control",
+      "interface": "chrome:control-chrome",
+      "state": "AVAILABLE_VERIFIED",
+      "detail": "semantic page and composer targeting verified"
+    },
+    {
+      "id": "C17",
+      "label": "Native Computer Use",
+      "interface": "host-native",
+      "state": "NOT_AVAILABLE",
+      "detail": "browser route remains sufficient for current work"
+    },
+    {
+      "id": "C19",
+      "label": "Linux accessibility",
+      "interface": "configured AT-SPI adapter",
+      "state": "AVAILABLE_UNTESTED",
+      "detail": "not needed until the blocked native dialog"
+    },
+    {
+      "id": "C24",
+      "label": "Local validation",
+      "interface": "sha256sum + Python 3.14",
+      "state": "AVAILABLE_VERIFIED",
+      "detail": "archive and schema checks available"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "A01",
+      "name": "control-inventory.json",
+      "state": "ACCEPTED",
+      "size_bytes": 18422,
+      "sha256": "a2f365bf72211d750361056677675a0e57ef7fa31d31b97fca62b3a9c6ba1ad2"
+    },
+    {
+      "id": "A02",
+      "name": "linux-findings.zip",
+      "state": "RECOVERED",
+      "size_bytes": 94210,
+      "sha256": "bb7563764de4e09c9b38889be21b7d54d2475e0fc92adf813a73f96e450a9136"
+    }
+  ],
+  "gates": [
+    {
+      "id": "G01",
+      "label": "Archive integrity",
+      "kind": "MECHANICAL",
+      "state": "PASS",
+      "detail": "members safe and hash-bound"
+    },
+    {
+      "id": "G02",
+      "label": "Evidence reconciliation",
+      "kind": "SEMANTIC",
+      "state": "PENDING",
+      "detail": "one focus-control contradiction remains"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D01",
+      "label": "Add macOS comparison",
+      "state": "PENDING",
+      "detail": "First pass found a useful cross-platform contrast; no lane has launched."
+    },
+    {
+      "id": "D02",
+      "label": "Native-dialog recovery",
+      "state": "MANUAL_ACTION_REQUIRED",
+      "detail": "Use the verified browser/manual path or defer the blocked artifact."
+    }
+  ],
+  "storage": {
+    "state": "READY",
+    "summary": "Dedicated run folder",
+    "used_bytes": 112632,
+    "budget_bytes": 524288000,
+    "artifact_count": 4,
+    "detail": "Review-before-delete cleanup at handoff"
+  },
+  "notes": {
+    "state": "READY",
+    "summary": "Confirmed Obsidian research root",
+    "count": 8,
+    "updated_at": "2026-08-31T02:39:44Z",
+    "detail": "Native ZIP and JSON are indexed, not duplicated"
+  },
+  "alerts": [
+    {
+      "level": "warning",
+      "title": "One contradiction needs adjudication",
+      "detail": "L02 and L04 disagree about independent focus proof on the tested adapter."
+    },
+    {
+      "level": "info",
+      "title": "Browser route remains healthy",
+      "detail": "The native desktop gap affects one download only; active research should continue."
+    }
+  ]
+}

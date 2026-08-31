@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose a bounded improvement to the workforce workflow
+title: "[Feature]: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What real workflow problem or repeated failure should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe behavior and acceptance evidence, not only wording.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Permission, privacy, and platform boundaries
+      description: Identify affected tools, platforms, data, and user decisions.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This request does not depend on weakening approvals, sandboxing, browser security, or operating-system security.
+          required: true

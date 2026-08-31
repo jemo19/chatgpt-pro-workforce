@@ -1,0 +1,29 @@
+# Local Codex state and private build evidence
+.codex/
+PRODUCT.md
+.build/
+BUILD_REPORT.md
+CAPABILITY_REPORT.md
+FORWARD_TEST_RESULTS.md
+FINAL_SKILL_MANIFEST.md
+
+# Generated release/test output
+dist/
+coverage/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+# Local environments and credentials
+.env
+.env.*
+.venv/
+venv/
+*.pem
+*.key
+
+# Editor and operating-system noise
+.DS_Store
+Thumbs.db
+*.swp
+*~

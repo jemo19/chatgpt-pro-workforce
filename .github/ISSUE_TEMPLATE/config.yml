@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/jemo19/chatgpt-pro-workforce/security/advisories/new
+    about: Report vulnerabilities and sensitive control failures privately.
+  - name: Usage and monitoring guide
+    url: https://github.com/jemo19/chatgpt-pro-workforce/blob/main/docs/test-run-monitoring.md
+    about: Start with the safe test-run and monitoring checklist.

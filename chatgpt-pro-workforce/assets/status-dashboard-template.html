@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="referrer" content="no-referrer">
+  <title>Workforce status</title>
+  <style>
+    :root {
+      --ink: #07110f;
+      --ink-raised: #0b1815;
+      --ink-soft: #10221e;
+      --line: #28423a;
+      --line-bright: #45675b;
+      --paper: #edf8ef;
+      --paper-muted: #aec5b8;
+      --mint: #9ff3bd;
+      --mint-deep: #4abf7d;
+      --sky: #8ccfff;
+      --amber: #f2c572;
+      --danger: #ff9890;
+      --quiet: #779789;
+      --focus: #fff1a8;
+      --radius: 14px;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-width: 320px;
+      background: var(--ink);
+      scrollbar-color: var(--line-bright) var(--ink);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--paper);
+      background:
+        radial-gradient(circle at 84% 8%, rgba(74, 191, 125, 0.09), transparent 32rem),
+        var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      text-rendering: optimizeLegibility;
+    }
+
+    ::selection { color: var(--ink); background: var(--mint); }
+
+    button, a { font: inherit; }
+
+    button:focus-visible, a:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 4px;
+    }
+
+    .shell {
+      width: min(1480px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 26px 0 56px;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 2px 18px;
+      color: var(--paper-muted);
+      font-size: 0.82rem;
+    }
+
+    .topline-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .controls-jump {
+      color: var(--mint);
+      text-decoration-color: rgba(159, 243, 189, 0.45);
+      text-underline-offset: 4px;
+    }
+
+    .controls-jump:hover { text-decoration-color: currentColor; }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--paper);
+      font-weight: 720;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-mark {
+      width: 17px;
+      height: 17px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3px;
+      transform: rotate(45deg);
+    }
+
+    .brand-mark span { background: var(--mint); }
+    .brand-mark span:nth-child(2) { opacity: 0.38; }
+    .brand-mark span:nth-child(3) { background: var(--sky); opacity: 0.75; }
+    .brand-mark span:nth-child(4) { opacity: 0.62; }
+
+    .local-only {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .local-only::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--mint);
+      box-shadow: 0 0 0 5px rgba(159, 243, 189, 0.08);
+    }
+
+    .command {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--ink-raised);
+      box-shadow: var(--shadow);
+    }
+
+    .refresh-scan {
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 2px;
+      background: var(--mint);
+      transform: scaleX(0);
+      transform-origin: left;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .command[data-refreshing="true"] .refresh-scan {
+      animation: scan 700ms var(--ease);
+    }
+
+    @keyframes scan {
+      0% { opacity: 0.3; transform: scaleX(0); }
+      45% { opacity: 1; }
+      100% { opacity: 0; transform: scaleX(1); }
+    }
+
+    .command-head {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.85fr) minmax(480px, 1.45fr);
+      min-height: 350px;
+    }
+
+    .run-intro {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 28px;
+      padding: clamp(26px, 4vw, 52px);
+      border-right: 1px solid var(--line);
+    }
+
+    .run-state-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .state-chip, .freshness-chip, .mini-state {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line-bright);
+      color: var(--paper-muted);
+      background: transparent;
+      font-size: 0.74rem;
+      font-weight: 750;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .state-chip[data-tone="good"], .mini-state[data-tone="good"] {
+      color: var(--mint);
+      border-color: rgba(159, 243, 189, 0.42);
+    }
+
+    .state-chip[data-tone="warn"], .freshness-chip[data-tone="warn"], .mini-state[data-tone="warn"] {
+      color: var(--amber);
+      border-color: rgba(242, 197, 114, 0.42);
+    }
+
+    .state-chip[data-tone="bad"], .freshness-chip[data-tone="bad"], .mini-state[data-tone="bad"] {
+      color: var(--danger);
+      border-color: rgba(255, 152, 144, 0.44);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 16ch;
+      margin-bottom: 18px;
+      font-size: clamp(2.35rem, 5.4vw, 5rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      text-wrap: balance;
+    }
+
+    .run-id {
+      color: var(--paper-muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.82rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next-action {
+      max-width: 60ch;
+      margin: 0;
+      color: var(--paper-muted);
+      font-size: clamp(0.98rem, 1.6vw, 1.16rem);
+    }
+
+    .next-action strong { color: var(--paper); font-weight: 720; }
+
+    .allocation-strip {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    .fact-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--quiet);
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .fact-value {
+      display: block;
+      overflow-wrap: anywhere;
+      color: var(--paper);
+      font-weight: 680;
+    }
+
+    .allocation-strip > div:nth-child(3),
+    .allocation-strip > div:nth-child(4) { grid-column: 1 / -1; }
+
+    .progress-board {
+      padding: clamp(26px, 4vw, 52px);
+      background: var(--ink-soft);
+    }
+
+    .progress-board-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 18px;
+      margin-bottom: 34px;
+    }
+
+    .progress-board h2 {
+      margin-bottom: 7px;
+      font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+      letter-spacing: -0.025em;
+    }
+
+    .progress-board-head p {
+      max-width: 52ch;
+      margin: 0;
+      color: var(--paper-muted);
+      font-size: 0.9rem;
+    }
+
+    .refresh-button {
+      flex: 0 0 auto;
+      min-height: 42px;
+      padding: 9px 15px;
+      border: 1px solid var(--line-bright);
+      border-radius: 10px;
+      color: var(--paper);
+      background: transparent;
+      cursor: pointer;
+      transition: border-color 180ms ease, background 180ms ease;
+    }
+
+    .refresh-button:hover { border-color: var(--mint); background: rgba(159, 243, 189, 0.07); }
+    .refresh-button:disabled { cursor: wait; opacity: 0.58; }
+
+    .progress-list { display: grid; gap: 21px; }
+
+    .progress-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.55fr) minmax(220px, 1.6fr) auto;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .progress-label { min-width: 0; }
+    .progress-label strong { display: block; font-size: 0.92rem; }
+    .progress-label span {
+      display: block;
+      overflow: hidden;
+      color: var(--paper-muted);
+      font-size: 0.76rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .track {
+      position: relative;
+      height: 17px;
+      overflow: hidden;
+      border: 1px solid var(--line-bright);
+      background: #09130f;
+    }
+
+    .fill {
+      width: 0;
+      height: 100%;
+      background: var(--mint);
+    }
+
+    .progress-row:nth-child(2) .fill { background: var(--sky); }
+    .progress-row:nth-child(3) .fill { background: #d2ebb0; }
+    .progress-row:nth-child(4) .fill { background: var(--amber); }
+    .progress-row:nth-child(5) .fill { background: #f0f7ed; }
+
+    .track[data-open="true"] .fill {
+      width: 34%;
+      opacity: 0.25;
+      animation: breathe 2.8s var(--ease) infinite alternate;
+    }
+
+    @keyframes breathe { to { width: 58%; opacity: 0.58; } }
+
+    .ratio {
+      min-width: 72px;
+      text-align: right;
+      color: var(--paper);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.84rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px clamp(22px, 4vw, 52px);
+      border-top: 1px solid var(--line);
+      color: var(--paper-muted);
+      font-size: 0.82rem;
+    }
+
+    .status-line strong { color: var(--paper); }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.7fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--ink-raised);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 23px 25px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 1.16rem;
+      letter-spacing: -0.015em;
+    }
+
+    .panel-head span { color: var(--quiet); font-size: 0.78rem; }
+
+    .lane-list, .stack-list, .alert-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .lane-item {
+      display: grid;
+      grid-template-columns: minmax(145px, 0.7fr) minmax(220px, 1.5fr) minmax(130px, 0.7fr);
+      gap: 20px;
+      padding: 21px 25px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .lane-item:last-child { border-bottom: 0; }
+    .lane-name { font-weight: 720; }
+    .lane-id, .lane-meta {
+      color: var(--quiet);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .lane-summary { margin: 0; color: var(--paper-muted); font-size: 0.88rem; }
+    .lane-next { color: var(--paper-muted); font-size: 0.8rem; }
+
+    .side-stack { display: grid; gap: 20px; align-content: start; }
+
+    .stack-item, .alert-item {
+      padding: 17px 21px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stack-item:last-child, .alert-item:last-child { border-bottom: 0; }
+    .stack-item strong, .alert-item strong { display: block; margin-bottom: 5px; }
+    .stack-item p, .alert-item p { margin: 0; color: var(--paper-muted); font-size: 0.84rem; }
+
+    .alert-item[data-level="warning"] strong { color: var(--amber); }
+    .alert-item[data-level="error"] strong { color: var(--danger); }
+    .alert-item[data-level="info"] strong { color: var(--sky); }
+
+    .systems {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .system-body { padding: 8px 25px 20px; }
+
+    .system-row {
+      display: grid;
+      grid-template-columns: minmax(130px, 0.8fr) minmax(0, 1.6fr) auto;
+      gap: 16px;
+      align-items: baseline;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .system-row:last-child { border-bottom: 0; }
+    .system-row strong { font-size: 0.85rem; }
+    .system-detail { min-width: 0; color: var(--paper-muted); font-size: 0.8rem; }
+
+    .empty {
+      padding: 34px 25px;
+      color: var(--paper-muted);
+      text-align: center;
+    }
+
+    .control-guide {
+      margin-top: 20px;
+      overflow: hidden;
+    }
+
+    .control-guide-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+      gap: 28px;
+      padding: clamp(24px, 3vw, 38px);
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, rgba(159, 243, 189, 0.055), transparent 52%);
+    }
+
+    .control-guide-head h2 {
+      margin-bottom: 8px;
+      font-size: clamp(1.55rem, 2.7vw, 2.35rem);
+      letter-spacing: -0.025em;
+    }
+
+    .control-guide-head p {
+      max-width: 68ch;
+      margin: 0;
+      color: var(--paper-muted);
+    }
+
+    .copy-boundary {
+      align-self: center;
+      padding: 16px 18px;
+      border-left: 3px solid var(--mint);
+      color: var(--paper-muted);
+      background: rgba(159, 243, 189, 0.045);
+      font-size: 0.82rem;
+    }
+
+    .copy-boundary strong { color: var(--paper); }
+
+    .control-groups {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .control-group {
+      padding: 26px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .control-group:nth-child(odd) { border-right: 1px solid var(--line); }
+    .control-group:nth-last-child(-n + 2) { border-bottom: 0; }
+
+    .control-group h3 {
+      margin-bottom: 5px;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .control-group > p {
+      margin-bottom: 19px;
+      color: var(--quiet);
+      font-size: 0.8rem;
+    }
+
+    .command-list {
+      display: grid;
+      gap: 11px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .command-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px 14px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #091512;
+    }
+
+    .command-copyline {
+      min-width: 0;
+    }
+
+    .command-copyline > code {
+      display: block;
+      padding-bottom: 2px;
+      color: var(--mint);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.78rem;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+
+    .command-copyline p {
+      margin: 6px 0 0;
+      color: var(--paper-muted);
+      font-size: 0.78rem;
+    }
+
+    .command-impact {
+      display: inline-flex;
+      margin-top: 9px;
+      color: var(--quiet);
+      font-size: 0.68rem;
+      font-weight: 760;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .copy-command {
+      align-self: start;
+      min-width: 66px;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid var(--line-bright);
+      border-radius: 8px;
+      color: var(--paper);
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .copy-command:hover { border-color: var(--mint); background: rgba(159, 243, 189, 0.07); }
+    .copy-command[data-copied="true"] { color: var(--ink); border-color: var(--mint); background: var(--mint); }
+
+    .copy-status {
+      min-height: 24px;
+      padding: 14px 26px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--quiet);
+      font-size: 0.78rem;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 30px 2px 0;
+      color: var(--quiet);
+      font-size: 0.76rem;
+    }
+
+    .footer code {
+      color: var(--paper-muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    @media (max-width: 960px) {
+      .command-head, .detail-grid { grid-template-columns: 1fr; }
+      .run-intro { border-right: 0; border-bottom: 1px solid var(--line); }
+      .systems { grid-template-columns: 1fr; }
+      .control-guide-head { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 650px) {
+      .shell { width: min(100% - 22px, 1480px); padding-top: 14px; }
+      .topline { align-items: flex-start; }
+      .topline-actions { align-items: flex-end; flex-direction: column; gap: 7px; }
+      .local-only { text-align: right; }
+      .run-intro, .progress-board { padding: 24px 19px; }
+      h1 { font-size: clamp(2.1rem, 13vw, 3.45rem); }
+      .progress-board-head { align-items: flex-start; }
+      .progress-row { grid-template-columns: 1fr auto; gap: 8px 14px; }
+      .track { grid-column: 1 / -1; grid-row: 2; }
+      .ratio { grid-column: 2; grid-row: 1; }
+      .lane-item { grid-template-columns: 1fr; gap: 9px; }
+      .panel-head { padding: 20px 18px 15px; }
+      .lane-item, .stack-item, .alert-item { padding-left: 18px; padding-right: 18px; }
+      .system-body { padding-left: 18px; padding-right: 18px; }
+      .system-row { grid-template-columns: 1fr auto; }
+      .system-detail { grid-column: 1 / -1; }
+      .status-line, .footer { align-items: flex-start; flex-direction: column; }
+      .allocation-strip { grid-template-columns: 1fr; }
+      .control-groups { grid-template-columns: 1fr; }
+      .control-group { padding: 21px 18px; border-right: 0 !important; border-bottom: 1px solid var(--line) !important; }
+      .control-group:last-child { border-bottom: 0 !important; }
+      .command-item { grid-template-columns: 1fr; }
+      .copy-command { justify-self: start; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!--
+  THESIS: An evidence-first command slate makes the run legible without pretending uncertainty is progress; it refuses the generic hero-metric dashboard.
+  OWN-WORLD: Midnight green work surfaces, mineral-white type, mint/sky/amber evidence marks, exact ruled tracks, and restrained rounded edges.
+  STORY: See run truth and freshness first, scan five registered ratios, then inspect lanes, blockers, controls, artifacts, storage, and notes.
+  FIRST VIEWPORT: Run identity and next action occupy the left; five labeled evidence tracks dominate the right; the refresh control stays adjacent to its timestamp.
+  FORM: Direct code-led interpretation of the user's compact `stats.png` reference, first-choice structure, seed `direct-user-reference-stats-v1`.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+  -->
+  <main class="shell">
+    <div class="topline">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>ChatGPT Pro Workforce</div>
+      <div class="topline-actions"><a class="controls-jump" href="#controls">View controls</a><div class="local-only">Local, read-only status</div></div>
+    </div>
+
+    <section class="command" id="command" aria-labelledby="run-title" data-refreshing="false">
+      <div class="refresh-scan" aria-hidden="true"></div>
+      <div class="command-head">
+        <header class="run-intro">
+          <div>
+            <div class="run-state-line">
+              <span class="state-chip" id="run-state">Loading</span>
+              <span class="freshness-chip" id="freshness">Unknown</span>
+            </div>
+            <h1 id="run-title">Loading workforce status</h1>
+            <div class="run-id" id="run-id">Awaiting local snapshot</div>
+          </div>
+          <div>
+            <p class="next-action"><strong>Next:</strong> <span id="next-action">Waiting for a valid status update.</span></p>
+            <div class="allocation-strip">
+              <div><span class="fact-label">Allocation</span><span class="fact-value" id="allocation">Unknown</span></div>
+              <div><span class="fact-label">Codex usage</span><span class="fact-value" id="codex-use">Unknown</span></div>
+              <div><span class="fact-label">Control route</span><span class="fact-value" id="route">Unknown</span></div>
+              <div><span class="fact-label">Durable update</span><time class="fact-value" id="updated-at">Unknown</time></div>
+            </div>
+          </div>
+        </header>
+
+        <section class="progress-board" aria-labelledby="progress-title">
+          <div class="progress-board-head">
+            <div>
+              <h2 id="progress-title">Registered progress</h2>
+              <p>Exact accepted units only. Open-ended work stays open-ended.</p>
+            </div>
+            <button class="refresh-button" id="refresh" type="button">Refresh now</button>
+          </div>
+          <div class="progress-list" id="progress-list" aria-live="polite"></div>
+        </section>
+      </div>
+      <div class="status-line" aria-live="polite">
+        <span id="connection-status"><strong>Connecting.</strong> Reading this run’s local snapshot.</span>
+        <span>Fetched <time id="fetched-at">not yet</time></span>
+      </div>
+    </section>
+
+    <div class="detail-grid">
+      <section class="panel" aria-labelledby="lanes-title">
+        <div class="panel-head"><h2 id="lanes-title">Lanes</h2><span id="lane-count">0 registered</span></div>
+        <ul class="lane-list" id="lane-list"></ul>
+      </section>
+
+      <div class="side-stack">
+        <section class="panel" aria-labelledby="alerts-title">
+          <div class="panel-head"><h2 id="alerts-title">Attention</h2><span>decisions &amp; blockers</span></div>
+          <ul class="alert-list" id="alert-list"></ul>
+        </section>
+        <section class="panel" aria-labelledby="decisions-title">
+          <div class="panel-head"><h2 id="decisions-title">Decisions</h2><span id="decision-count">0 pending</span></div>
+          <ul class="stack-list" id="decision-list"></ul>
+        </section>
+      </div>
+    </div>
+
+    <div class="systems">
+      <section class="panel" aria-labelledby="readiness-title">
+        <div class="panel-head"><h2 id="readiness-title">Readiness &amp; controls</h2><span>current invocation</span></div>
+        <div class="system-body" id="readiness-list"></div>
+      </section>
+      <section class="panel" aria-labelledby="gates-title">
+        <div class="panel-head"><h2 id="gates-title">Artifacts &amp; gates</h2><span id="artifact-count">0 recovered</span></div>
+        <div class="system-body" id="gate-list"></div>
+      </section>
+      <section class="panel" aria-labelledby="storage-title">
+        <div class="panel-head"><h2 id="storage-title">Storage &amp; cleanup</h2><span>run-owned files</span></div>
+        <div class="system-body" id="storage-list"></div>
+      </section>
+      <section class="panel" aria-labelledby="notes-title">
+        <div class="panel-head"><h2 id="notes-title">Research notes</h2><span>Obsidian-compatible</span></div>
+        <div class="system-body" id="notes-list"></div>
+      </section>
+    </div>
+
+    <section class="panel control-guide" id="controls" aria-labelledby="controls-title">
+      <div class="control-guide-head">
+        <div>
+          <h2 id="controls-title">Workforce controls</h2>
+          <p>Copy an intent into the Codex chat window. Commands use this page’s current safe run ID when one is needed. Natural-language equivalents also work.</p>
+        </div>
+        <div class="copy-boundary"><strong>Copy-only controls.</strong> These buttons place text on your clipboard. They never execute a command, change run state, contact a worker, or keep Codex running.</div>
+      </div>
+
+      <div class="control-groups">
+        <section class="control-group" aria-labelledby="observe-controls-title">
+          <h3 id="observe-controls-title">Start &amp; observe</h3>
+          <p>Guided kickoff and read-only status views.</p>
+          <ul class="command-list">
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce">$chatgpt-pro-workforce</code><p>Open the step-by-step setup or start a new scoped task.</p><span class="command-impact">Guided · no automatic launch</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce status {RUN_ID}">$chatgpt-pro-workforce status RUN_ID</code><p>Show the compact five-bar card from durable state.</p><span class="command-impact">Read only</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce tell me more {RUN_ID}">$chatgpt-pro-workforce tell me more RUN_ID</code><p>Show lanes, evidence, readiness, blockers, artifacts, and next actions. <code>status more</code> is an alias.</p><span class="command-impact">Read only</span></div><button class="copy-command" type="button">Copy</button></li>
+          </ul>
+        </section>
+
+        <section class="control-group" aria-labelledby="flow-controls-title">
+          <h3 id="flow-controls-title">Pause, resume &amp; stop</h3>
+          <p>Checkpoint or reconcile work without blind retries.</p>
+          <ul class="command-list">
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce pause {RUN_ID}">$chatgpt-pro-workforce pause RUN_ID</code><p>Checkpoint orchestration without routinely interrupting a healthy worker.</p><span class="command-impact">Soft checkpoint</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce resume {RUN_ID}">$chatgpt-pro-workforce resume RUN_ID</code><p>Reload durable state, recheck controls, and reconcile duplicates or unknown outcomes.</p><span class="command-impact">Reconciles before action</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce continue {RUN_ID}">$chatgpt-pro-workforce continue RUN_ID</code><p>Resume if paused; otherwise continue the existing bounded lane without duplicating it.</p><span class="command-impact">May continue work</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce stop {RUN_ID}">$chatgpt-pro-workforce stop RUN_ID</code><p>Request an explicit terminal stop and durable final state; this is not the same as pause.</p><span class="command-impact">Terminal · confirmation may apply</span></div><button class="copy-command" type="button">Copy</button></li>
+          </ul>
+        </section>
+
+        <section class="control-group" aria-labelledby="scope-controls-title">
+          <h3 id="scope-controls-title">Scope &amp; allocation</h3>
+          <p>Review discoveries or change who handles future work.</p>
+          <ul class="command-list">
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce review discovered topics {RUN_ID}">$chatgpt-pro-workforce review discovered topics RUN_ID</code><p>Review first-pass topic/category proposals before adding work.</p><span class="command-impact">Decision packet</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce change allocation {RUN_ID}">$chatgpt-pro-workforce change allocation RUN_ID</code><p>Choose Pro-heavy, balanced, Codex-heavy, or local-only. Changes apply to future work and preserve active lane ownership.</p><span class="command-impact">Configuration choice</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce change concurrency {RUN_ID}">$chatgpt-pro-workforce change concurrency RUN_ID</code><p>Change the finite maximum for future Pro launches. Two is the safe default. More than two is high risk: likely throttling and interrupted, closed, disconnected, or inaccessible chats can cause unsaved or unverified work to be lost. It requires an explicit current-run, exact-limit acknowledgment and never closes active chats.</p><span class="command-impact">High-risk above 2 · copy only</span></div><button class="copy-command" type="button">Copy</button></li>
+          </ul>
+        </section>
+
+        <section class="control-group" aria-labelledby="local-controls-title">
+          <h3 id="local-controls-title">Dashboard &amp; help</h3>
+          <p>Manage this local view or open the complete chat help.</p>
+          <ul class="command-list">
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard {RUN_ID}">$chatgpt-pro-workforce dashboard RUN_ID</code><p>Create or refresh the authorized loopback view and show a link only after health succeeds.</p><span class="command-impact">Local files/process only</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard stop {RUN_ID}">$chatgpt-pro-workforce dashboard stop RUN_ID</code><p>Stop only the verified managed dashboard process; durable run state remains intact.</p><span class="command-impact">Local process only</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce uninstall">$chatgpt-pro-workforce uninstall</code><p>Open a guided exact-target inventory, recoverable backup, and confirmation flow. Research data and shared control tools stay untouched.</p><span class="command-impact">Destructive only after confirmation</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce help">$chatgpt-pro-workforce help</code><p>Show full chat help. Topics include status, dashboard, modes, allocation, concurrency, resume, controls, prerequisites, install, and uninstall.</p><span class="command-impact">Read only</span></div><button class="copy-command" type="button">Copy</button></li>
+          </ul>
+        </section>
+      </div>
+      <div class="copy-status" id="copy-status" role="status" aria-live="polite">Nothing copied yet.</div>
+    </section>
+
+    <footer class="footer">
+      <span>This page reports sanitized durable state. It cannot control workers or keep Codex running.</span>
+      <span>For chat detail: <code>$chatgpt-pro-workforce tell me more RUN_ID</code></span>
+    </footer>
+    <noscript><p class="empty">JavaScript is required to read the local status snapshot. Use the chat “tell me more” intent instead.</p></noscript>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const POLL_MS = 5000;
+      const $ = (id) => document.getElementById(id);
+      const GOOD_STATES = new Set([
+        "ACCEPTED", "ACTIVE", "APPROVED", "AVAILABLE_VERIFIED", "COMPLETE",
+        "FULL_BROWSER_AND_DESKTOP", "BROWSER_ONLY", "HEALTHY", "LOCAL_CODEX_ONLY",
+        "MECHANICAL_ACCEPTED", "PASS", "READY", "RECOVERED", "RETURNED", "RUNNING",
+        "RUNNING_HEALTHY",
+        "SEMANTIC_ACCEPTED"
+      ]);
+      const BAD_STATES = new Set([
+        "BLOCKED", "BROWSER_DISCONNECTED", "DISABLED", "FAIL", "MISCONFIGURED",
+        "NOT_AUTHORIZED", "NOT_AVAILABLE", "NOT_RECOVERABLE", "REJECTED", "STALLED",
+        "TERMINAL_INCOMPLETE", "MECHANICAL_REJECTED", "SEMANTIC_REJECTED"
+      ]);
+      const WARNING_STATES = new Set([
+        "AVAILABLE_UNTESTED", "BROWSER_WITH_MANUAL_DESKTOP", "CANDIDATE", "DEFERRED",
+        "DEGRADED", "DRAFT", "DUPLICATE", "EXPECTED", "LIMIT_PAUSED",
+        "MANUAL_ACTION_REQUIRED", "MANUAL_BROWSER_HANDOFF", "NOT_RUN", "OPEN", "PARTIAL",
+        "PAUSED", "PAUSING", "PENDING", "PLANNED", "PREFLIGHTED", "RAW", "RESUMING",
+        "RUNNING_WITH_TRANSIENT_ERROR", "SLOW_NO_FAILURE_EVIDENCE", "STALE", "SUBMITTED",
+        "TEMPORARY", "TERMINAL_PARTIAL_ARTIFACT_RETURN", "UNKNOWN"
+      ]);
+      const toneFor = (value) => {
+        const state = String(value || "").toUpperCase();
+        if (GOOD_STATES.has(state)) return "good";
+        if (BAD_STATES.has(state)) return "bad";
+        if (WARNING_STATES.has(state)) return "warn";
+        return "neutral";
+      };
+
+      const make = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = String(text);
+        return node;
+      };
+
+      const setText = (id, value, fallback = "Unknown") => {
+        $(id).textContent = value === undefined || value === null || value === "" ? fallback : String(value);
+      };
+
+      const formatTime = (value) => {
+        if (!value) return "Unknown";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString([], { dateStyle: "medium", timeStyle: "medium" });
+      };
+
+      const setChip = (id, value) => {
+        const node = $(id);
+        node.textContent = value || "Unknown";
+        node.dataset.tone = toneFor(value);
+      };
+
+      const hydrateCommands = (runId) => {
+        document.querySelectorAll("[data-command-template]").forEach((node) => {
+          node.textContent = node.dataset.commandTemplate.replaceAll("{RUN_ID}", runId);
+        });
+      };
+
+      const copyText = async (value) => {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(value);
+          return;
+        }
+        const field = document.createElement("textarea");
+        field.value = value;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.append(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) throw new Error("Clipboard copy was not available");
+      };
+
+      const empty = (container, message) => {
+        container.replaceChildren(make("div", "empty", message));
+      };
+
+      const renderProgress = (items) => {
+        const container = $("progress-list");
+        container.replaceChildren();
+        if (!items.length) return empty(container, "No registered progress units yet.");
+        items.forEach((item) => {
+          const row = make("div", "progress-row");
+          const label = make("div", "progress-label");
+          label.append(make("strong", "", item.label), make("span", "", item.detail || item.state));
+
+          const track = make("div", "track");
+          const fill = make("div", "fill");
+          const finite = Number.isInteger(item.total) && item.total > 0 && Number.isInteger(item.current);
+          if (finite) {
+            const current = Math.min(item.current, item.total);
+            const percent = Math.max(0, Math.min(100, (current / item.total) * 100));
+            fill.style.width = `${percent}%`;
+            track.setAttribute("role", "progressbar");
+            track.setAttribute("aria-label", item.label);
+            track.setAttribute("aria-valuemin", "0");
+            track.setAttribute("aria-valuemax", String(item.total));
+            track.setAttribute("aria-valuenow", String(current));
+          } else {
+            track.dataset.open = "true";
+            track.setAttribute("aria-label", `${item.label}: ${item.state || "open ended"}`);
+          }
+          track.append(fill);
+          const ratio = make("div", "ratio", finite ? `${item.current}/${item.total}` : "—/—");
+          row.append(label, track, ratio);
+          container.append(row);
+        });
+      };
+
+      const renderLanes = (lanes) => {
+        const list = $("lane-list");
+        list.replaceChildren();
+        setText("lane-count", `${lanes.length} registered`);
+        if (!lanes.length) return empty(list, "No worker lanes are registered.");
+        lanes.forEach((lane) => {
+          const item = make("li", "lane-item");
+          const identity = make("div", "");
+          identity.append(make("div", "lane-name", lane.name), make("div", "lane-id", `${lane.id} · ${lane.owner}`));
+          const summary = make("p", "lane-summary", lane.summary);
+          const next = make("div", "lane-next");
+          const chip = make("span", "mini-state", lane.state);
+          chip.dataset.tone = toneFor(lane.state);
+          next.append(chip, make("div", "lane-meta", formatTime(lane.last_observed_at)), make("div", "", lane.next_action));
+          item.append(identity, summary, next);
+          list.append(item);
+        });
+      };
+
+      const renderAlerts = (alerts) => {
+        const list = $("alert-list");
+        list.replaceChildren();
+        if (!alerts.length) return empty(list, "No blockers or warnings in the current snapshot.");
+        alerts.forEach((alert) => {
+          const item = make("li", "alert-item");
+          item.dataset.level = alert.level;
+          item.append(make("strong", "", alert.title), make("p", "", alert.detail));
+          list.append(item);
+        });
+      };
+
+      const renderDecisions = (decisions) => {
+        const list = $("decision-list");
+        list.replaceChildren();
+        const pending = decisions.filter((item) => new Set(["PENDING", "MANUAL_ACTION_REQUIRED"]).has(item.state)).length;
+        setText("decision-count", `${pending} pending`);
+        if (!decisions.length) return empty(list, "No user decisions are registered.");
+        decisions.forEach((decision) => {
+          const item = make("li", "stack-item");
+          item.append(make("strong", "", `${decision.label} · ${decision.state}`), make("p", "", decision.detail));
+          list.append(item);
+        });
+      };
+
+      const appendSystemRow = (container, label, detail, state) => {
+        const row = make("div", "system-row");
+        row.append(make("strong", "", label), make("div", "system-detail", detail));
+        const chip = make("span", "mini-state", state);
+        chip.dataset.tone = toneFor(state);
+        row.append(chip);
+        container.append(row);
+      };
+
+      const renderReadiness = (items) => {
+        const container = $("readiness-list");
+        container.replaceChildren();
+        if (!items.length) return empty(container, "Readiness has not been observed in this invocation.");
+        items.forEach((item) => appendSystemRow(container, item.label, `${item.interface}: ${item.detail}`, item.state));
+      };
+
+      const renderArtifactsAndGates = (artifacts, gates) => {
+        const container = $("gate-list");
+        container.replaceChildren();
+        const recoveredStates = new Set(["RECOVERED", "ACCEPTED"]);
+        setText("artifact-count", `${artifacts.filter((item) => recoveredStates.has(item.state)).length} recovered`);
+        artifacts.forEach((item) => {
+          const detail = `${item.size_bytes} bytes · ${item.sha256 ? item.sha256.slice(0, 12) + "…" : "hash unavailable"}`;
+          appendSystemRow(container, item.name, detail, item.state);
+        });
+        gates.forEach((item) => appendSystemRow(container, item.label, `${item.kind}: ${item.detail}`, item.state));
+        if (!artifacts.length && !gates.length) empty(container, "No artifacts or acceptance gates are registered.");
+      };
+
+      const summaryValue = (key, value) => {
+        if (key.endsWith("_bytes") && Number.isInteger(value)) {
+          return new Intl.NumberFormat([], { style: "unit", unit: "byte", unitDisplay: "short" }).format(value);
+        }
+        return String(value);
+      };
+
+      const renderSummaryObject = (id, entries, emptyMessage) => {
+        const container = $(id);
+        container.replaceChildren();
+        const pairs = Object.entries(entries || {});
+        if (!pairs.length) return empty(container, emptyMessage);
+        pairs.forEach(([key, value]) => {
+          const label = key.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+          appendSystemRow(container, label, summaryValue(key, value), key === "state" ? String(value) : "INFO");
+        });
+      };
+
+      const render = (data) => {
+        const run = data.run;
+        document.title = `${run.id} · Workforce status`;
+        setChip("run-state", run.status);
+        setChip("freshness", run.freshness);
+        setText("run-title", run.title);
+        setText("run-id", run.id);
+        setText("next-action", run.next_action);
+        setText("allocation", run.allocation_profile);
+        setText("codex-use", `${run.codex_usage_band} (qualitative)`);
+        setText("route", run.route);
+        setText("updated-at", formatTime(run.updated_at));
+        $("updated-at").dateTime = run.updated_at;
+        hydrateCommands(run.id);
+        renderProgress(data.progress || []);
+        renderLanes(data.lanes || []);
+        renderAlerts(data.alerts || []);
+        renderDecisions(data.decisions || []);
+        renderReadiness(data.readiness || []);
+        renderArtifactsAndGates(data.artifacts || [], data.gates || []);
+        renderSummaryObject("storage-list", data.storage, "Storage has not been configured.");
+        renderSummaryObject("notes-list", data.notes, "Research notes are not configured.");
+      };
+
+      let loading = false;
+      const load = async (manual = false) => {
+        if (loading) return;
+        loading = true;
+        $("refresh").disabled = true;
+        $("command").dataset.refreshing = "true";
+        try {
+          const response = await fetch(`status.json?now=${Date.now()}`, { cache: "no-store", credentials: "omit" });
+          if (!response.ok) throw new Error(`Status request returned ${response.status}`);
+          const data = await response.json();
+          if (!data || data.schema_version !== 1 || !data.run || !Array.isArray(data.progress)) throw new Error("Status snapshot has an unsupported schema");
+          render(data);
+          $("connection-status").replaceChildren(make("strong", "", "Current."), document.createTextNode(" Local snapshot loaded successfully."));
+          setText("fetched-at", new Date().toLocaleTimeString());
+          $("fetched-at").dateTime = new Date().toISOString();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown local status error";
+          $("connection-status").replaceChildren(make("strong", "", "Status unavailable."), document.createTextNode(` ${message}. Use the chat “tell me more” intent.`));
+          $("freshness").textContent = "Stale";
+          $("freshness").dataset.tone = "warn";
+          if (manual) setText("fetched-at", new Date().toLocaleTimeString());
+        } finally {
+          loading = false;
+          $("refresh").disabled = false;
+          window.setTimeout(() => { $("command").dataset.refreshing = "false"; }, 720);
+        }
+      };
+
+      $("refresh").addEventListener("click", () => load(true));
+      document.querySelectorAll(".copy-command").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const command = button.closest(".command-item").querySelector("[data-command-template]").textContent;
+          try {
+            await copyText(command);
+            button.textContent = "Copied";
+            button.dataset.copied = "true";
+            setText("copy-status", `Copied: ${command}`);
+            window.setTimeout(() => {
+              button.textContent = "Copy";
+              button.dataset.copied = "false";
+            }, 1600);
+          } catch (_error) {
+            setText("copy-status", "Copy was unavailable. Select the command text and copy it manually.");
+          }
+        });
+      });
+      load();
+      window.setInterval(() => load(false), POLL_MS);
+    })();
+  </script>
+</body>
+</html>
