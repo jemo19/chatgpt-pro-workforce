@@ -113,6 +113,7 @@ These are conversational intents, not native CLI subcommands:
 | `$chatgpt-pro-workforce resume RUN_ID` | Reconcile current state before continuing |
 | `$chatgpt-pro-workforce change allocation RUN_ID` | Change future Pro/Codex work ownership |
 | `$chatgpt-pro-workforce change concurrency RUN_ID 1` | Change the finite future-launch ceiling |
+| `$chatgpt-pro-workforce dashboard troubleshoot RUN_ID` | Verify the exact local page and run one bounded safe repair if needed |
 | `$chatgpt-pro-workforce help` | Show modes, controls, safety boundaries, and examples |
 | `$chatgpt-pro-workforce uninstall` | Begin exact-target, backup-first removal |
 

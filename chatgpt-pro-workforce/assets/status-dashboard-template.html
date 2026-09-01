@@ -22,8 +22,8 @@
       --danger: #ff9890;
       --quiet: #779789;
       --focus: #fff1a8;
-      --radius: 14px;
-      --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+      --radius: 6px;
+      --shadow: none;
       --ease: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -39,13 +39,59 @@
       margin: 0;
       min-height: 100vh;
       color: var(--paper);
-      background:
-        radial-gradient(circle at 84% 8%, rgba(74, 191, 125, 0.09), transparent 32rem),
-        var(--ink);
+      background: var(--ink);
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.5;
       text-rendering: optimizeLegibility;
     }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .trust-strip {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 14px;
+      min-height: 44px;
+      padding: 8px 18px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      background: #081410;
+      color: var(--paper-muted);
+      font-size: 0.82rem;
+    }
+    .trust-strip[data-state="current"] .trust-state { color: var(--mint); }
+    .trust-strip[data-state="loading"] .trust-state,
+    .trust-strip[data-state="reconnecting"] .trust-state { color: var(--sky); }
+    .trust-strip[data-state="stale"] .trust-state,
+    .trust-strip[data-state="data_error"] .trust-state { color: var(--amber); }
+    .trust-strip[data-state="unavailable"] .trust-state { color: var(--danger); }
+    .trust-state {
+      color: var(--paper);
+      font-weight: 750;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+    .trust-detail { min-width: 0; }
+    .retry-button {
+      border: 1px solid var(--line-bright);
+      border-radius: 4px;
+      padding: 7px 11px;
+      background: transparent;
+      color: var(--paper);
+      cursor: pointer;
+    }
+    .retry-button:hover { border-color: var(--mint); color: var(--mint); }
 
     ::selection { color: var(--ink); background: var(--mint); }
 
@@ -211,11 +257,11 @@
     h1, h2, h3, p { margin-top: 0; }
 
     h1 {
-      max-width: 16ch;
+      max-width: 22ch;
       margin-bottom: 18px;
-      font-size: clamp(2.35rem, 5.4vw, 5rem);
-      line-height: 0.96;
-      letter-spacing: -0.04em;
+      font-size: clamp(2.15rem, 3.4vw, 3.5rem);
+      line-height: 1.02;
+      letter-spacing: -0.035em;
       text-wrap: balance;
     }
 
@@ -384,7 +430,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: var(--ink-raised);
-      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+      box-shadow: none;
     }
 
     .panel-head {
@@ -483,7 +529,7 @@
       gap: 28px;
       padding: clamp(24px, 3vw, 38px);
       border-bottom: 1px solid var(--line);
-      background: linear-gradient(115deg, rgba(159, 243, 189, 0.055), transparent 52%);
+      background: #0a1713;
     }
 
     .control-guide-head h2 {
@@ -501,7 +547,7 @@
     .copy-boundary {
       align-self: center;
       padding: 16px 18px;
-      border-left: 3px solid var(--mint);
+      border-top: 2px solid var(--mint);
       color: var(--paper-muted);
       background: rgba(159, 243, 189, 0.045);
       font-size: 0.82rem;
@@ -620,6 +666,31 @@
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     }
 
+    .diagnostics {
+      margin-top: 10px;
+      padding: 13px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--paper-muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.72rem;
+      line-height: 1.65;
+    }
+    .diagnostics summary {
+      width: max-content;
+      color: var(--paper);
+      cursor: pointer;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-weight: 700;
+    }
+    .diagnostic-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px 18px;
+      margin-top: 10px;
+    }
+    .diagnostic-grid dt { color: var(--quiet); text-transform: uppercase; }
+    .diagnostic-grid dd { margin: 0; overflow-wrap: anywhere; color: var(--paper-muted); }
+
     @media (max-width: 960px) {
       .command-head, .detail-grid { grid-template-columns: 1fr; }
       .run-intro { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -651,6 +722,9 @@
       .control-group:last-child { border-bottom: 0 !important; }
       .command-item { grid-template-columns: 1fr; }
       .copy-command { justify-self: start; }
+      .trust-strip { grid-template-columns: 1fr auto; }
+      .trust-detail { grid-column: 1 / -1; grid-row: 2; }
+      .diagnostic-grid { grid-template-columns: 1fr; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -669,7 +743,7 @@
   OWN-WORLD: Midnight green work surfaces, mineral-white type, mint/sky/amber evidence marks, exact ruled tracks, and restrained rounded edges.
   STORY: See run truth and freshness first, scan five registered ratios, then inspect lanes, blockers, controls, artifacts, storage, and notes.
   FIRST VIEWPORT: Run identity and next action occupy the left; five labeled evidence tracks dominate the right; the refresh control stays adjacent to its timestamp.
-  FORM: Direct code-led interpretation of the user's compact `stats.png` reference, first-choice structure, seed `direct-user-reference-stats-v1`.
+  FORM: Operations-ledger interpretation of the user's compact `stats.png` reference, assigned direction seed `4f4856a6`, marker `workforce-status-v2`.
   FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
   -->
   <main class="shell">
@@ -678,7 +752,13 @@
       <div class="topline-actions"><a class="controls-jump" href="#controls">View controls</a><div class="local-only">Local, read-only status</div></div>
     </div>
 
-    <section class="command" id="command" aria-labelledby="run-title" data-refreshing="false">
+    <section class="trust-strip" id="trust-strip" data-state="loading" aria-live="polite" aria-atomic="true">
+      <span class="trust-state" id="projection-state">Loading</span>
+      <span class="trust-detail" id="projection-detail">Connecting to this run's loopback status feed.</span>
+      <button class="retry-button" id="retry" type="button">Retry now</button>
+    </section>
+
+    <section class="command" id="command" aria-labelledby="run-title" data-refreshing="false" data-dashboard-shell="workforce-status-v2">
       <div class="refresh-scan" aria-hidden="true"></div>
       <div class="command-head">
         <header class="run-intro">
@@ -801,6 +881,7 @@
           <p>Manage this local view or open the complete chat help.</p>
           <ul class="command-list">
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard {RUN_ID}">$chatgpt-pro-workforce dashboard RUN_ID</code><p>Create or refresh the authorized loopback view and show a link only after health succeeds.</p><span class="command-impact">Local files/process only</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard troubleshoot {RUN_ID}">$chatgpt-pro-workforce dashboard troubleshoot RUN_ID</code><p>Verify the exact loopback server, run page, and snapshot; repair at most one identity-matched skill-owned process.</p><span class="command-impact">Bounded local repair</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard stop {RUN_ID}">$chatgpt-pro-workforce dashboard stop RUN_ID</code><p>Stop only the verified managed dashboard process; durable run state remains intact.</p><span class="command-impact">Local process only</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce uninstall">$chatgpt-pro-workforce uninstall</code><p>Open a guided exact-target inventory, recoverable backup, and confirmation flow. Research data and shared control tools stay untouched.</p><span class="command-impact">Destructive only after confirmation</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce help">$chatgpt-pro-workforce help</code><p>Show full chat help. Topics include status, dashboard, modes, allocation, concurrency, resume, controls, prerequisites, install, and uninstall.</p><span class="command-impact">Read only</span></div><button class="copy-command" type="button">Copy</button></li>
@@ -814,6 +895,17 @@
       <span>This page reports sanitized durable state. It cannot control workers or keep Codex running.</span>
       <span>For chat detail: <code>$chatgpt-pro-workforce tell me more RUN_ID</code></span>
     </footer>
+    <details class="diagnostics">
+      <summary>Projection diagnostics</summary>
+      <dl class="diagnostic-grid">
+        <div><dt>Schema</dt><dd id="diag-schema">not loaded</dd></div>
+        <div><dt>Last success</dt><dd id="diag-success">never</dd></div>
+        <div><dt>Last attempt</dt><dd id="diag-attempt">not yet</dd></div>
+        <div><dt>Failures</dt><dd id="diag-failures">0</dd></div>
+        <div><dt>Next retry</dt><dd id="diag-retry">automatic</dd></div>
+        <div><dt>Snapshot URL</dt><dd id="diag-url">status.json</dd></div>
+      </dl>
+    </details>
     <noscript><p class="empty">JavaScript is required to read the local status snapshot. Use the chat “tell me more” intent instead.</p></noscript>
   </main>
 
@@ -822,6 +914,7 @@
       "use strict";
 
       const POLL_MS = 5000;
+      const RETRY_SECONDS = [1, 2, 4, 8, 16, 30];
       const $ = (id) => document.getElementById(id);
       const GOOD_STATES = new Set([
         "ACCEPTED", "ACTIVE", "APPROVED", "AVAILABLE_VERIFIED", "COMPLETE",
@@ -843,6 +936,33 @@
         "RUNNING_WITH_TRANSIENT_ERROR", "SLOW_NO_FAILURE_EVIDENCE", "STALE", "SUBMITTED",
         "TEMPORARY", "TERMINAL_PARTIAL_ARTIFACT_RETURN", "UNKNOWN"
       ]);
+      let lastGood = null;
+      let failureCount = 0;
+      let retryTimer = null;
+
+      const projectionCopy = {
+        loading: ["Loading", "Connecting to this run's loopback status feed."],
+        current: ["Current", "The latest validated local snapshot is displayed."],
+        reconnecting: ["Reconnecting", "The last-known-good snapshot remains visible while the feed is retried."],
+        stale: ["Stale", "The snapshot loaded, but its durable update time is old. Confirm the active run before acting."],
+        data_error: ["Data error", "The server responded, but status.json was malformed or unsupported."],
+        unavailable: ["Unavailable", "The loopback status feed could not be reached. Run the dashboard troubleshooting control in Codex."]
+      };
+
+      const setProjection = (state, detail) => {
+        const copy = projectionCopy[state] || projectionCopy.unavailable;
+        $("trust-strip").dataset.state = state;
+        setText("projection-state", copy[0]);
+        setText("projection-detail", detail || copy[1]);
+      };
+
+      const schedule = (delayMs) => {
+        window.clearTimeout(retryTimer);
+        const jitter = delayMs === POLL_MS ? 0 : Math.floor(Math.random() * Math.min(400, delayMs / 4));
+        const actual = delayMs + jitter;
+        setText("diag-retry", `${Math.ceil(actual / 1000)}s`);
+        retryTimer = window.setTimeout(() => load(false), actual);
+      };
       const toneFor = (value) => {
         const state = String(value || "").toUpperCase();
         if (GOOD_STATES.has(state)) return "good";
@@ -1053,30 +1173,58 @@
         if (loading) return;
         loading = true;
         $("refresh").disabled = true;
+        $("retry").disabled = true;
         $("command").dataset.refreshing = "true";
+        setText("diag-attempt", new Date().toLocaleTimeString());
+        if (!lastGood) setProjection("loading");
         try {
           const response = await fetch(`status.json?now=${Date.now()}`, { cache: "no-store", credentials: "omit" });
           if (!response.ok) throw new Error(`Status request returned ${response.status}`);
-          const data = await response.json();
+          let data;
+          try {
+            data = await response.json();
+          } catch (_error) {
+            throw new Error("status.json contains malformed JSON");
+          }
           if (!data || data.schema_version !== 1 || !data.run || !Array.isArray(data.progress)) throw new Error("Status snapshot has an unsupported schema");
           render(data);
+          lastGood = data;
+          failureCount = 0;
           $("connection-status").replaceChildren(make("strong", "", "Current."), document.createTextNode(" Local snapshot loaded successfully."));
           setText("fetched-at", new Date().toLocaleTimeString());
           $("fetched-at").dateTime = new Date().toISOString();
+          setText("diag-success", new Date().toLocaleTimeString());
+          setText("diag-schema", String(data.schema_version));
+          setText("diag-failures", "0");
+          const updatedMs = new Date(data.run.updated_at).getTime();
+          const isStale = Number.isFinite(updatedMs) && Date.now() - updatedMs > 15 * 60 * 1000;
+          setProjection(isStale ? "stale" : "current");
+          schedule(POLL_MS);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unknown local status error";
-          $("connection-status").replaceChildren(make("strong", "", "Status unavailable."), document.createTextNode(` ${message}. Use the chat “tell me more” intent.`));
+          failureCount += 1;
+          setText("diag-failures", String(failureCount));
+          const dataError = /malformed JSON|unsupported schema/.test(message);
+          const state = dataError ? "data_error" : (lastGood ? "reconnecting" : (failureCount > 2 ? "unavailable" : "reconnecting"));
+          setProjection(state, `${message}. ${lastGood ? "Showing the last-known-good snapshot." : "No validated snapshot has loaded yet."}`);
+          $("connection-status").replaceChildren(make("strong", "", dataError ? "Status data error." : "Status feed interrupted."), document.createTextNode(` ${message}. Use dashboard troubleshoot if retries do not recover.`));
           $("freshness").textContent = "Stale";
           $("freshness").dataset.tone = "warn";
           if (manual) setText("fetched-at", new Date().toLocaleTimeString());
+          schedule(RETRY_SECONDS[Math.min(failureCount - 1, RETRY_SECONDS.length - 1)] * 1000);
         } finally {
           loading = false;
           $("refresh").disabled = false;
+          $("retry").disabled = false;
           window.setTimeout(() => { $("command").dataset.refreshing = "false"; }, 720);
         }
       };
 
       $("refresh").addEventListener("click", () => load(true));
+      $("retry").addEventListener("click", () => {
+        failureCount = 0;
+        load(true);
+      });
       document.querySelectorAll(".copy-command").forEach((button) => {
         button.addEventListener("click", async () => {
           const command = button.closest(".command-item").querySelector("[data-command-template]").textContent;
@@ -1084,7 +1232,7 @@
             await copyText(command);
             button.textContent = "Copied";
             button.dataset.copied = "true";
-            setText("copy-status", `Copied: ${command}`);
+            setText("copy-status", `Copied — no action executed. ${command}`);
             window.setTimeout(() => {
               button.textContent = "Copy";
               button.dataset.copied = "false";
@@ -1095,7 +1243,6 @@
         });
       });
       load();
-      window.setInterval(() => load(false), POLL_MS);
     })();
   </script>
 </body>

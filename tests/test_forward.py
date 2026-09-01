@@ -127,6 +127,8 @@ def main() -> int:
         guided_ok = observed == "GUIDED_START" and has(
             "references/guided-start.md",
             "Ask one short question at a time",
+            "show **every option that is currently valid**",
+            "A. Pro-heavy",
             "What would you like to get done?",
             "no worker is launched",
         )

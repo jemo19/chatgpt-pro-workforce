@@ -635,6 +635,7 @@ def main() -> int:
         "$chatgpt-pro-workforce resume {RUN_ID}",
         "$chatgpt-pro-workforce change allocation {RUN_ID}",
         "$chatgpt-pro-workforce change concurrency {RUN_ID}",
+        "$chatgpt-pro-workforce dashboard troubleshoot {RUN_ID}",
         "$chatgpt-pro-workforce uninstall",
         "$chatgpt-pro-workforce help",
     )
@@ -654,6 +655,19 @@ def main() -> int:
     locator_bounds = ("DEFAULT_DIRECTORY_LIMIT", "DEFAULT_ENTRY_LIMIT", "PER_DIRECTORY_ENTRY_LIMIT", "DEFAULT_MAX_SECONDS", "marker_root_too_broad")
     record("PC88", "Obsidian search has breadth, time, and broad-root limits", "all hard-stop mechanisms present", ",".join(term for term in locator_bounds if term in locator_text), all(term in locator_text for term in locator_bounds) and '"complete": not ceiling_hit' in locator_text)
     record("PC89", "Obsidian traversal rechecks identity and filesystem", "lstat on pop; same st_dev; no symlink follow", "documented" if "directory.lstat()" in locator_text else "missing", "directory.lstat()" in locator_text and "directory_stat.st_dev != start_device" in locator_text and "follow_symlinks=False" in locator_text)
+    guided_text = (ROOT / "references/guided-start.md").read_text()
+    menu_markers = (
+        "show **every option that is currently valid**",
+        "A. Pro-heavy",
+        "D. Local only",
+        "A. Ask before adding",
+        "C. Fixed scope",
+        "A. Standard",
+        "C. Quiet",
+        "A. Repair/setup plan",
+        "D. Stop here",
+    )
+    record("PC90", "guided preflight enumerates complete choices", "lettered purpose/tradeoff menus", ",".join(term for term in menu_markers if term in guided_text), all(term in guided_text for term in menu_markers))
 
     failures = [result for result in RESULTS if result[1] == FAIL]
     for case_id, classification, title, details in RESULTS:

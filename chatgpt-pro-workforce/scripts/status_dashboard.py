@@ -26,6 +26,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
 from urllib.parse import unquote_to_bytes, urlsplit
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -981,6 +982,88 @@ def command_health(args: argparse.Namespace) -> int:
     return 0
 
 
+def _probe_url(url: str, *, port: int, timeout: float, label: str) -> tuple[bytes, str]:
+    request = Request(url, headers={"Host": f"localhost:{port}"})
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            body = response.read(MAX_TEMPLATE_BYTES + 1)
+            content_type = response.headers.get("Content-Type", "")
+            if response.status != HTTPStatus.OK:
+                raise DashboardError(f"{label}_unavailable: HTTP {response.status}")
+    except HTTPError as exc:
+        raise DashboardError(f"{label}_unavailable: HTTP {exc.code}") from exc
+    except (URLError, OSError, TimeoutError) as exc:
+        raise DashboardError(f"{label}_unavailable: connection failed") from exc
+    if len(body) > MAX_TEMPLATE_BYTES:
+        raise DashboardError(f"{label}_invalid: response is too large")
+    return body, content_type
+
+
+def command_verify(args: argparse.Namespace) -> int:
+    """Verify server identity, exact run page, and current sanitized snapshot."""
+    run_id = _safe_run_id(args.run_id)
+    expected_root = _validate_dashboard_root(args.expected_root, create=False)
+    expected_fingerprint = _root_fingerprint(expected_root)
+    addresses = _loopback_addresses(args.host)
+    family, address = addresses[0]
+    display_host = f"[{address}]" if family == socket.AF_INET6 else address
+    base = f"http://{display_host}:{args.port}"
+
+    health_body, health_type = _probe_url(
+        f"{base}/healthz", port=args.port, timeout=args.timeout, label="server"
+    )
+    try:
+        health = json.loads(health_body)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DashboardError("server_identity_invalid: malformed health response") from exc
+    if (
+        "application/json" not in health_type
+        or not isinstance(health, dict)
+        or set(health) != {"status", "root_fingerprint"}
+        or health.get("status") != "ok"
+        or health.get("root_fingerprint") != expected_fingerprint
+    ):
+        raise DashboardError("server_identity_mismatch: wrong dashboard root or service")
+
+    run_url = f"{base}/runs/{run_id}/"
+    page_body, page_type = _probe_url(
+        run_url, port=args.port, timeout=args.timeout, label="run_page"
+    )
+    if "text/html" not in page_type or b'data-dashboard-shell="workforce-status-v2"' not in page_body:
+        raise DashboardError("run_page_invalid: expected dashboard shell was not served")
+
+    status_body, status_type = _probe_url(
+        f"{run_url}status.json",
+        port=args.port,
+        timeout=args.timeout,
+        label="status_snapshot",
+    )
+    if len(status_body) > MAX_JSON_BYTES or "application/json" not in status_type:
+        raise DashboardError("status_snapshot_invalid: wrong type or oversized response")
+    try:
+        payload = json.loads(status_body)
+        sanitized = _validate_status(payload, run_id)
+    except (UnicodeDecodeError, json.JSONDecodeError, DashboardError) as exc:
+        raise DashboardError("status_snapshot_invalid: schema or run identity failed") from exc
+
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "run_id": run_id,
+                "page_url": run_url,
+                "root_fingerprint": expected_fingerprint,
+                "status_sha256": hashlib.sha256(status_body).hexdigest(),
+                "freshness": sanitized["run"].get("freshness", "UNKNOWN"),
+                "updated_at": sanitized["run"].get("updated_at", ""),
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _add_status_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--status-file", help="read public status JSON from a regular file")
 
@@ -1022,6 +1105,16 @@ def build_parser() -> argparse.ArgumentParser:
     health_parser.add_argument("--port", type=int, default=8765, help="running dashboard port")
     health_parser.add_argument("--timeout", type=float, default=2.0)
     health_parser.set_defaults(handler=command_health)
+
+    verify_parser = subparsers.add_parser(
+        "verify", help="verify the exact server, run page, and status snapshot"
+    )
+    verify_parser.add_argument("--host", default="127.0.0.1", help="loopback host")
+    verify_parser.add_argument("--port", type=int, default=8765, help="running dashboard port")
+    verify_parser.add_argument("--expected-root", required=True, help="expected dedicated dashboard root")
+    verify_parser.add_argument("--run-id", required=True, help="safe public run ID")
+    verify_parser.add_argument("--timeout", type=float, default=2.0)
+    verify_parser.set_defaults(handler=command_verify)
     return parser
 
 

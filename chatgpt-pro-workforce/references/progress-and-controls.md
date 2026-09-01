@@ -53,6 +53,7 @@ $chatgpt-pro-workforce review discovered topics [RUN_ID]
 $chatgpt-pro-workforce change allocation [RUN_ID] [PRO_HEAVY|BALANCED|CODEX_HEAVY|LOCAL_ONLY]
 $chatgpt-pro-workforce change concurrency [RUN_ID] [1|2|FINITE_MAXIMUM]
 $chatgpt-pro-workforce dashboard [RUN_ID]
+$chatgpt-pro-workforce dashboard troubleshoot [RUN_ID]
 $chatgpt-pro-workforce dashboard stop [RUN_ID]
 $chatgpt-pro-workforce stop [RUN_ID]
 $chatgpt-pro-workforce uninstall
@@ -78,6 +79,10 @@ identifying question using safe run ID and outcome text only.
 - `dashboard` creates/refreshes and, when needed, starts the run's authorized
   loopback status surface; `dashboard stop` stops only its verified managed
   process and leaves durable state intact.
+- `dashboard troubleshoot` runs the exact-root/run/snapshot diagnostic,
+  verifies the rendered page through the available Chrome/browser route, and
+  may perform at most one authorized bounded restart of an identity-matched
+  skill-owned process. It never kills an unknown port owner.
 - `stop` requires explicit intent, persists final state, and must not be
   confused with a recoverable pause.
 - `uninstall` opens the exact-target, confirmation-gated, recoverable procedure
@@ -327,8 +332,10 @@ active chats. The page only copies the intent.
 On every invocation, atomically refresh the run's sanitized snapshot when the
 dashboard policy is not `DISABLED`. A page already open polls this file with
 cache disabled. This is data refresh, not background orchestration. Show a URL
-only after the exact loopback health check succeeds. When it fails or the
-process has ended, omit the URL and keep
+only after the exact server, run-page, and snapshot verification succeeds;
+when Chrome/browser control is available, also confirm the expected run ID and
+connection state in the rendered page. When verification fails or the process
+has ended, run the bounded dashboard fault diagnostic, omit the URL, and keep
 `$chatgpt-pro-workforce tell me more RUN_ID` visible.
 
 The dashboard is read-only. Starting/stopping its managed local process never

@@ -316,7 +316,27 @@ def main() -> int:
                 and "default-src 'none'" in headers.get("Content-Security-Policy", "")
                 and headers.get("X-Frame-Options") == "DENY"
             )
-            record("DB11", status == 200 and b"direct-user-reference-stats-v1" in page and required_headers, "page served with CSP/no-store/frame denial")
+            record("DB11", status == 200 and b'data-dashboard-shell="workforce-status-v2"' in page and required_headers, "v2 page served with CSP/no-store/frame denial")
+
+            verified = run(
+                "verify", "--host", "127.0.0.1", "--port", port,
+                "--expected-root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+            )
+            verified_payload = json.loads(verified.stdout)
+            record(
+                "DB21",
+                verified_payload.get("status") == "ok"
+                and verified_payload.get("run_id") == "RUN-DASHBOARD-TEST"
+                and verified_payload.get("page_url", "").endswith("/runs/RUN-DASHBOARD-TEST/"),
+                "exact server, run page, and snapshot verified",
+            )
+
+            missing_run = run(
+                "verify", "--host", "127.0.0.1", "--port", port,
+                "--expected-root", str(root), "--run-id", "RUN-MISSING",
+                expected=2,
+            )
+            record("DB22", "run_page_unavailable" in missing_run.stderr, "missing run page classified")
 
             control_surface = all(
                 term in page
@@ -377,6 +397,18 @@ def main() -> int:
                 "health", "--host", "127.0.0.1", "--port", port, "--expected-root", str(wrong_root), expected=2
             )
             record("DB17", "health check failed" in wrong_health.stderr, "wrong-root server identity rejected")
+
+            valid_status_bytes = served_status.read_bytes()
+            served_status.write_text("{malformed", encoding="utf-8")
+            served_status.chmod(0o600)
+            malformed = run(
+                "verify", "--host", "127.0.0.1", "--port", port,
+                "--expected-root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+                expected=2,
+            )
+            served_status.write_bytes(valid_status_bytes)
+            served_status.chmod(0o600)
+            record("DB23", "status_snapshot_invalid" in malformed.stderr, "malformed snapshot classified without mutation")
         finally:
             server.terminate()
             try:
@@ -385,6 +417,12 @@ def main() -> int:
                 server.kill()
                 server.wait(timeout=5)
         record("DB18", server.poll() is not None, "temporary dashboard server stopped")
+        dead_server = run(
+            "verify", "--host", "127.0.0.1", "--port", port,
+            "--expected-root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+            expected=2,
+        )
+        record("DB24", "server_unavailable" in dead_server.stderr, "stopped server classified")
 
     failures = [item for item in RESULTS if item[1] == FAIL]
     for case_id, classification, evidence in RESULTS:

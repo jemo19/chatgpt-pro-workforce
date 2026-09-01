@@ -53,9 +53,13 @@ On every skill invocation:
 4. atomically replace that run's `status.json` with
    [status dashboard helper](../scripts/status_dashboard.py);
 5. if the policy or user intent calls for a link, verify the exact loopback
-   server with its health check;
-6. show the URL only after health succeeds; otherwise show the text detailed-
-   status intent and record the dashboard as unavailable or stale.
+   server, requested run page, and sanitized snapshot with the helper's
+   `verify` command;
+6. when the verified Chrome/browser route is available, open the exact run URL
+   and semantically confirm the expected run ID, title, freshness, and visible
+   connection state before presenting it as browser-verified;
+7. show the URL only after local verification succeeds; otherwise show the text
+   detailed-status intent and record the dashboard as unavailable or stale.
 
 Also refresh the snapshot after a material transition while the active Codex
 turn continues: lane submission/terminal change, artifact recovery, gate result,
@@ -129,6 +133,7 @@ perform the equivalent of:
 <python-path> scripts/status_dashboard.py update --root <dedicated-dashboard-root> --run-id <RUN_ID> --status-file <sanitized-status-json>
 <python-path> scripts/status_dashboard.py serve --root <dedicated-dashboard-root> --bind 127.0.0.1 --port <PORT>
 <python-path> scripts/status_dashboard.py health --host 127.0.0.1 --port <PORT> --expected-root <dedicated-dashboard-root>
+<python-path> scripts/status_dashboard.py verify --host 127.0.0.1 --port <PORT> --expected-root <dedicated-dashboard-root> --run-id <RUN_ID>
 ```
 
 On Linux, the dedicated root, `runs`, and run directory must be owned by the
@@ -147,16 +152,24 @@ dashboard root, port, managed process/session identity, health time, and last
 snapshot time. Never daemonize through a system service or claim the process
 will survive the current host/session.
 
-After a successful health check, put this exact style of line directly under
-the compact progress card:
+Treat `health` as server-identity diagnosis, not sufficient proof that one run
+page works. `verify` must confirm the server identity, exact HTML shell,
+requested run ID, status schema, and status hash. After successful `verify`,
+put this exact style of line directly under the compact progress card:
 
 ```text
 Dashboard: http://127.0.0.1:<PORT>/runs/<RUN_ID>/
 ```
 
 The link is local and read-only. Never show `localhost` when the server is bound
-to another interface, and never show a remembered link without a current health
-check. Prefer the literal `127.0.0.1` URL so the binding is clear.
+to another interface, and never show a remembered link without a current exact-
+run verification. Prefer the literal `127.0.0.1` URL so the binding is clear.
+When Chrome/browser control is available, open that URL and confirm the visible
+run ID plus connection/freshness banner. Record `browser_visible: VERIFIED` or
+the exact limitation. Do not use screenshots alone when semantic page state is
+available. Account for any Chrome debugging/automation infobar by measuring the
+actual content viewport after navigation rather than assuming the outer window
+height.
 
 ## Refresh semantics
 
@@ -182,7 +195,7 @@ Keep a complete, visually grouped control reference below the detailed status
 content and a visible `View controls` anchor near the top of the page. It must
 cover guided start, compact and detailed status, pause, resume, continue,
 discovered-topic review, allocation and Pro-concurrency changes, dashboard
-start/refresh and stop, explicit run stop, safe uninstall, and help. Describe
+start/refresh, troubleshoot and stop, explicit run stop, safe uninstall, and help. Describe
 the effect and safety boundary of each.
 
 Show each intent as exact selectable text with a `Copy` button. After a valid
@@ -233,15 +246,31 @@ the page must expose no removal endpoint.
 ## Failure and recovery
 
 If update fails, preserve the previous valid snapshot, mark dashboard evidence
-stale in durable state, and keep the chat status path available. If health fails:
+stale in durable state, and keep the chat status path available. If `verify` or
+browser-visible loading fails, enter `DASHBOARD_FAULT_DIAGNOSTIC`:
 
-1. verify the recorded root, port, process/session identity, and loopback bind;
-2. reconcile whether the old process ended before starting another;
-3. attempt at most one bounded restart when the profile/current intent authorizes
-   it;
-4. run health again and show the link only on success;
-5. otherwise report the exact local failure and use
+1. run local-root `health` to distinguish a missing/unsafe root from a server
+   problem;
+2. verify the recorded root, port, managed process/session identity, and
+   loopback bind; never trust a stale PID by itself;
+3. run `verify` and classify exactly one primary fault:
+   `SERVER_UNREACHABLE`, `SERVER_IDENTITY_MISMATCH`, `RUN_PAGE_UNAVAILABLE`,
+   `RUN_PAGE_INVALID`, `STATUS_SNAPSHOT_UNAVAILABLE`, or
+   `STATUS_SNAPSHOT_INVALID`;
+4. reconcile whether the recorded process ended before starting another;
+5. attempt at most one bounded restart of a skill-owned, identity-matched
+   process when the profile/current intent authorizes it. If the recorded port
+   is occupied by an unknown process, select a free loopback port and update
+   durable dashboard state instead of killing anything;
+6. run `verify` again. When Chrome/browser control is available, open the exact
+   page and semantically confirm the run ID and connection banner;
+7. show the link only on success. Otherwise report the classified fault, the
+   attempted repair, and the text fallback
    `$chatgpt-pro-workforce tell me more RUN_ID`.
+
+Do not restart on a browser-only rendering failure until the HTTP and snapshot
+checks have established that the local service is healthy. Do not loop: one
+diagnostic pass and one bounded restart are the ceiling for the same fault.
 
 Never kill a process from a stale PID alone. Match the managed process identity,
 command, root, and port before a stop. A port collision, unsupported host process

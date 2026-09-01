@@ -31,7 +31,10 @@ When the user invokes `$chatgpt-pro-workforce` without a concrete task, read
 [guided start](references/guided-start.md) and begin its conversational
 walkthrough. Ask one small question at a time, explain relevant choices in
 plain language, recommend a default, and let the user answer roughly or say
-"you choose." Do not launch a worker or perform a desktop action during intake.
+"you choose." For every finite decision, show all currently valid options as
+a lettered `A.`, `B.`, `C.` menu with each option's purpose and tradeoff; never
+hide a valid choice behind an internal token. Do not launch a worker or perform
+a desktop action during intake.
 
 On first use, also ask about ChatGPT Pro download storage and retention,
 Obsidian/research-note location and topic folders, and the optional localhost

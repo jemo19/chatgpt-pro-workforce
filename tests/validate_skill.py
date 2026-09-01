@@ -518,7 +518,7 @@ def main() -> int:
         errors.append("dashboard does not poll local status with cache disabled")
     if re.search(r"<(?:script|link)[^>]+(?:src|href)=[\"']https?://", dashboard_html, re.I):
         errors.append("dashboard loads an external script or stylesheet")
-    for term in ("prefers-reduced-motion", "focus-visible", "aria-live", "direct-user-reference-stats-v1"):
+    for term in ("prefers-reduced-motion", "focus-visible", "aria-live", "workforce-status-v2"):
         if term not in dashboard_html:
             errors.append(f"dashboard craft/accessibility marker missing: {term}")
     for term in (

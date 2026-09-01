@@ -16,13 +16,20 @@ the user understand lane design or control tooling first.
 ## Conversation style
 
 - Ask one short question at a time. Do not dump a questionnaire.
+- Whenever a question has a finite choice set, show **every option that is currently valid**
+  as `A.`, `B.`, `C.` and so on. Give each option a plain-
+  language name, what it does, and its meaningful tradeoff or effect; mark one
+  `Recommended` when there is a safe default. Accept the letter, the name, a
+  rough natural-language answer, or `you choose`. Never hide a valid option
+  behind an unexplained internal token.
 - Start in plain language, then name the corresponding mode or control route.
 - After each answer, reflect the decision and recommend the most suitable
   default. Explain a meaningful tradeoff in one or two sentences.
 - Accept rough answers. Offer "you choose" whenever the user has no preference.
 - Do not require the user to know tool, MCP, adapter, browser, window, or file
   format names.
-- Surface only choices relevant to the task. Do not recite every feature.
+- Keep each menu to one decision. Include all valid choices for that decision,
+  but do not mix in unrelated features or impossible/unavailable routes.
 - Never treat a menu selection as permission for an external, destructive,
   privileged, customer-visible, or sensitive action.
 - If local Codex work is clearly faster and equally reliable, recommend
@@ -80,6 +87,8 @@ Read [operating modes](modes.md) and recommend the smallest mode set:
 
 Explain why the recommendation fits. Combine modes only when their relationship
 is explicit, such as research followed by synthesis.
+When a mode decision is needed, turn all eight rows above into a lettered menu
+with the one-line purpose shown; mark the recommended single mode or sequence.
 
 Ask mode-specific follow-ups only when material:
 
@@ -120,6 +129,16 @@ label suggests. Tell the user the setting can be changed at any time and that a
 change applies only to future work unless they explicitly approve a safe
 transition for pending lanes.
 
+Present this complete decision shape, with the task-specific recommendation
+marked:
+
+```text
+A. Pro-heavy — Pro does most substantive work; lowest qualitative Codex usage.
+B. Balanced — Pro lanes plus meaningful Codex checking and synthesis; moderate Codex usage. (Recommended by default)
+C. Codex-heavy — Codex does primary work; Pro supplies bounded specialist or adversarial lanes; high Codex usage.
+D. Local only — Codex does everything locally and launches no Pro worker; Codex-only usage.
+```
+
 ### 5. First-pass scope expansion
 
 For research or another discovery-heavy task, ask:
@@ -134,6 +153,14 @@ no preference grants new permissions or material scope expansion. At the
 first-pass checkpoint, show discovered topics with stable IDs, relevance,
 evidence, likely value, cost/overlap, and proposed lanes.
 
+List the complete choice set:
+
+```text
+A. Ask before adding — pause with a coverage proposal before expanding. (Recommended)
+B. Auto-add in-scope — add bounded discoveries that need no new permission or material scope change.
+C. Fixed scope — keep the original scope and record adjacent findings as deferred.
+```
+
 ### 6. Reporting and controls
 
 Ask whether the user wants `VERBOSE`, `STANDARD`, or `QUIET` status updates;
@@ -142,6 +169,14 @@ and always include a visible `tell me more` invocation. Mention that
 `$chatgpt-pro-workforce help` lists status, pause, resume, topic-review, and
 allocation controls. Do not promise native tooltips or background notifications
 after the active turn ends.
+
+List the complete cadence choice:
+
+```text
+A. Standard — report transitions, blockers, decisions, and after two unchanged observations. (Recommended)
+B. Verbose — report every meaningful monitoring observation.
+C. Quiet — report only transitions, blockers, decisions, pause/resume, and terminal state.
+```
 
 If the optional dashboard is enabled and healthy, explain that each compact
 card also includes a `127.0.0.1` link to a richer read-only page. The page polls
@@ -187,6 +222,10 @@ For the local detail page, read
 be `DISABLED`, `ON_DEMAND` (recommended), or `ENABLED`. Confirm a dedicated
 dashboard root and explain that it is loopback-only, read-only, and best-effort
 for the current host/session. Do not start it from preference capture alone.
+Show all three as a lettered menu: `A. On demand` prepares or starts it only
+when requested (recommended), `B. Enabled` maintains snapshots and reconnects
+the loopback server when authorized, and `C. Disabled` creates or serves no
+dashboard files.
 
 ### 8. Workforce shape
 
@@ -251,6 +290,12 @@ permissions, security impact, validation, and rollback and obtain explicit
 approval for that packet. Native credential, privacy, UAC, portal, or OS-owned
 consent dialogs remain manual. After any approved setup, rerun the complete
 preflight before starting workers.
+
+Present every currently possible recovery choice as a lettered menu and mark
+the safest route that still meets the outcome: `A. Repair/setup plan`, `B.
+Manual or reduced route`, `C. Revise the workload`, and `D. Stop here` when
+stopping is valid. Omit only a route that is factually impossible, and say why
+in the preflight summary rather than silently hiding it.
 
 ### 10. Ready-to-start card
 
