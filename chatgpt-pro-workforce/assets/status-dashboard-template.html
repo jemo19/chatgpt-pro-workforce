@@ -8,20 +8,20 @@
   <title>Workforce status</title>
   <style>
     :root {
-      --ink: #07110f;
-      --ink-raised: #0b1815;
-      --ink-soft: #10221e;
-      --line: #28423a;
-      --line-bright: #45675b;
-      --paper: #edf8ef;
-      --paper-muted: #aec5b8;
-      --mint: #9ff3bd;
-      --mint-deep: #4abf7d;
-      --sky: #8ccfff;
-      --amber: #f2c572;
-      --danger: #ff9890;
-      --quiet: #779789;
-      --focus: #fff1a8;
+      --ink: #0b1020;
+      --ink-raised: #12192b;
+      --ink-soft: #18233a;
+      --line: #34415b;
+      --line-bright: #60708e;
+      --paper: #f5f7fc;
+      --paper-muted: #b9c3d6;
+      --accent: #8ab4f8;
+      --accent-strong: #5f93ed;
+      --accepted: #c6a9ff;
+      --attention: #f2c66d;
+      --danger: #ff8d85;
+      --quiet: #8e9ab2;
+      --focus: #f2c66d;
       --radius: 6px;
       --shadow: none;
       --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -66,15 +66,15 @@
       padding: 8px 18px;
       border: 1px solid var(--line);
       border-bottom: 0;
-      background: #081410;
+      background: #0d1426;
       color: var(--paper-muted);
       font-size: 0.82rem;
     }
-    .trust-strip[data-state="current"] .trust-state { color: var(--mint); }
+    .trust-strip[data-state="current"] .trust-state { color: var(--accent); }
     .trust-strip[data-state="loading"] .trust-state,
-    .trust-strip[data-state="reconnecting"] .trust-state { color: var(--sky); }
+    .trust-strip[data-state="reconnecting"] .trust-state { color: var(--accent); }
     .trust-strip[data-state="stale"] .trust-state,
-    .trust-strip[data-state="data_error"] .trust-state { color: var(--amber); }
+    .trust-strip[data-state="data_error"] .trust-state { color: var(--attention); }
     .trust-strip[data-state="unavailable"] .trust-state { color: var(--danger); }
     .trust-state {
       color: var(--paper);
@@ -91,9 +91,9 @@
       color: var(--paper);
       cursor: pointer;
     }
-    .retry-button:hover { border-color: var(--mint); color: var(--mint); }
+    .retry-button:hover { border-color: var(--accent); color: var(--accent); }
 
-    ::selection { color: var(--ink); background: var(--mint); }
+    ::selection { color: var(--ink); background: var(--accent); }
 
     button, a { font: inherit; }
 
@@ -125,8 +125,8 @@
     }
 
     .controls-jump {
-      color: var(--mint);
-      text-decoration-color: rgba(159, 243, 189, 0.45);
+      color: var(--accent);
+      text-decoration-color: rgba(138, 180, 248, 0.45);
       text-underline-offset: 4px;
     }
 
@@ -150,9 +150,9 @@
       transform: rotate(45deg);
     }
 
-    .brand-mark span { background: var(--mint); }
+    .brand-mark span { background: var(--accent); }
     .brand-mark span:nth-child(2) { opacity: 0.38; }
-    .brand-mark span:nth-child(3) { background: var(--sky); opacity: 0.75; }
+    .brand-mark span:nth-child(3) { background: var(--accepted); opacity: 0.85; }
     .brand-mark span:nth-child(4) { opacity: 0.62; }
 
     .local-only {
@@ -166,8 +166,8 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--mint);
-      box-shadow: 0 0 0 5px rgba(159, 243, 189, 0.08);
+      background: var(--accent);
+      box-shadow: 0 0 0 5px rgba(138, 180, 248, 0.09);
     }
 
     .command {
@@ -178,13 +178,12 @@
       background: var(--ink-raised);
       box-shadow: var(--shadow);
     }
-
     .refresh-scan {
       position: absolute;
       inset: 0 auto auto 0;
       width: 100%;
       height: 2px;
-      background: var(--mint);
+      background: var(--accent);
       transform: scaleX(0);
       transform-origin: left;
       opacity: 0;
@@ -229,7 +228,7 @@
       align-items: center;
       min-height: 28px;
       padding: 4px 10px;
-      border-radius: 999px;
+      border-radius: 3px;
       border: 1px solid var(--line-bright);
       color: var(--paper-muted);
       background: transparent;
@@ -240,12 +239,12 @@
     }
 
     .state-chip[data-tone="good"], .mini-state[data-tone="good"] {
-      color: var(--mint);
-      border-color: rgba(159, 243, 189, 0.42);
+      color: var(--accepted);
+      border-color: rgba(198, 169, 255, 0.42);
     }
 
     .state-chip[data-tone="warn"], .freshness-chip[data-tone="warn"], .mini-state[data-tone="warn"] {
-      color: var(--amber);
+      color: var(--attention);
       border-color: rgba(242, 197, 114, 0.42);
     }
 
@@ -259,8 +258,8 @@
     h1 {
       max-width: 22ch;
       margin-bottom: 18px;
-      font-size: clamp(2.15rem, 3.4vw, 3.5rem);
-      line-height: 1.02;
+      font-size: clamp(1.8rem, 2.6vw, 2rem);
+      line-height: 1.08;
       letter-spacing: -0.035em;
       text-wrap: balance;
     }
@@ -324,7 +323,7 @@
 
     .progress-board h2 {
       margin-bottom: 7px;
-      font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+      font-size: clamp(1.4rem, 2.4vw, 2rem);
       letter-spacing: -0.025em;
     }
 
@@ -340,14 +339,14 @@
       min-height: 42px;
       padding: 9px 15px;
       border: 1px solid var(--line-bright);
-      border-radius: 10px;
+      border-radius: 4px;
       color: var(--paper);
       background: transparent;
       cursor: pointer;
       transition: border-color 180ms ease, background 180ms ease;
     }
 
-    .refresh-button:hover { border-color: var(--mint); background: rgba(159, 243, 189, 0.07); }
+    .refresh-button:hover { border-color: var(--accent); background: rgba(138, 180, 248, 0.09); }
     .refresh-button:disabled { cursor: wait; opacity: 0.58; }
 
     .progress-list { display: grid; gap: 21px; }
@@ -375,19 +374,19 @@
       height: 17px;
       overflow: hidden;
       border: 1px solid var(--line-bright);
-      background: #09130f;
+      background: #0e1628;
     }
 
     .fill {
       width: 0;
       height: 100%;
-      background: var(--mint);
+      background: var(--accent);
     }
 
-    .progress-row:nth-child(2) .fill { background: var(--sky); }
-    .progress-row:nth-child(3) .fill { background: #d2ebb0; }
-    .progress-row:nth-child(4) .fill { background: var(--amber); }
-    .progress-row:nth-child(5) .fill { background: #f0f7ed; }
+    .progress-row:nth-child(2) .fill { background: var(--accent); }
+    .progress-row:nth-child(3) .fill { background: var(--accepted); }
+    .progress-row:nth-child(4) .fill { background: var(--accent); }
+    .progress-row:nth-child(5) .fill { background: var(--paper); }
 
     .track[data-open="true"] .fill {
       width: 34%;
@@ -486,9 +485,9 @@
     .stack-item strong, .alert-item strong { display: block; margin-bottom: 5px; }
     .stack-item p, .alert-item p { margin: 0; color: var(--paper-muted); font-size: 0.84rem; }
 
-    .alert-item[data-level="warning"] strong { color: var(--amber); }
+    .alert-item[data-level="warning"] strong { color: var(--attention); }
     .alert-item[data-level="error"] strong { color: var(--danger); }
-    .alert-item[data-level="info"] strong { color: var(--sky); }
+    .alert-item[data-level="info"] strong { color: var(--accent); }
 
     .systems {
       display: grid;
@@ -529,12 +528,12 @@
       gap: 28px;
       padding: clamp(24px, 3vw, 38px);
       border-bottom: 1px solid var(--line);
-      background: #0a1713;
+      background: #111a2e;
     }
 
     .control-guide-head h2 {
       margin-bottom: 8px;
-      font-size: clamp(1.55rem, 2.7vw, 2.35rem);
+      font-size: clamp(1.55rem, 2.7vw, 2rem);
       letter-spacing: -0.025em;
     }
 
@@ -547,9 +546,9 @@
     .copy-boundary {
       align-self: center;
       padding: 16px 18px;
-      border-top: 2px solid var(--mint);
+      border-top: 1px solid var(--line-bright);
       color: var(--paper-muted);
-      background: rgba(159, 243, 189, 0.045);
+      background: rgba(138, 180, 248, 0.045);
       font-size: 0.82rem;
     }
 
@@ -594,8 +593,8 @@
       gap: 10px 14px;
       padding: 15px;
       border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #091512;
+      border-radius: 4px;
+      background: #0e172a;
     }
 
     .command-copyline {
@@ -605,7 +604,7 @@
     .command-copyline > code {
       display: block;
       padding-bottom: 2px;
-      color: var(--mint);
+      color: var(--accent);
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
       font-size: 0.78rem;
       overflow-wrap: anywhere;
@@ -641,8 +640,8 @@
       font-size: 0.75rem;
     }
 
-    .copy-command:hover { border-color: var(--mint); background: rgba(159, 243, 189, 0.07); }
-    .copy-command[data-copied="true"] { color: var(--ink); border-color: var(--mint); background: var(--mint); }
+    .copy-command:hover { border-color: var(--accent); background: rgba(138, 180, 248, 0.09); }
+    .copy-command[data-copied="true"] { color: var(--ink); border-color: var(--accent); background: var(--accent); }
 
     .copy-status {
       min-height: 24px;
@@ -704,7 +703,7 @@
       .topline-actions { align-items: flex-end; flex-direction: column; gap: 7px; }
       .local-only { text-align: right; }
       .run-intro, .progress-board { padding: 24px 19px; }
-      h1 { font-size: clamp(2.1rem, 13vw, 3.45rem); }
+      h1 { font-size: clamp(1.75rem, 9vw, 2rem); }
       .progress-board-head { align-items: flex-start; }
       .progress-row { grid-template-columns: 1fr auto; gap: 8px 14px; }
       .track { grid-column: 1 / -1; grid-row: 2; }
@@ -737,13 +736,13 @@
     }
   </style>
 </head>
-<body>
+<body data-surface="live">
   <!--
-  THESIS: An evidence-first command slate makes the run legible without pretending uncertainty is progress; it refuses the generic hero-metric dashboard.
-  OWN-WORLD: Midnight green work surfaces, mineral-white type, mint/sky/amber evidence marks, exact ruled tracks, and restrained rounded edges.
-  STORY: See run truth and freshness first, scan five registered ratios, then inspect lanes, blockers, controls, artifacts, storage, and notes.
-  FIRST VIEWPORT: Run identity and next action occupy the left; five labeled evidence tracks dominate the right; the refresh control stays adjacent to its timestamp.
-  FORM: Operations-ledger interpretation of the user's compact `stats.png` reference, assigned direction seed `4f4856a6`, marker `workforce-status-v2`.
+  THESIS: Blue Hour Archive makes a live research run read like a calm evidence ledger and refuses the generic hero-metric dashboard.
+  OWN-WORLD: Midnight-blue ruled bands, cobalt activity, amber attention, coral failure, violet acceptance, mineral-white type, and exact tabular measurements.
+  STORY: Verify snapshot trust, read the next safe action, scan five independent evidence tracks, then inspect workers, decisions, gates, files, and controls.
+  FIRST VIEWPORT: Run identity and next action hold the left ledger; five evidence tracks fill the right; worker rows begin below without hiding the attention rail.
+  FORM: Blue Hour Archive, grounded direction six, seed 61ffdee4, implemented as a continuous operational ledger with marker workforce-status-v2.
   FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
   -->
   <main class="shell">
@@ -883,6 +882,7 @@
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard {RUN_ID}">$chatgpt-pro-workforce dashboard RUN_ID</code><p>Create or refresh the authorized loopback view and show a link only after health succeeds.</p><span class="command-impact">Local files/process only</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard troubleshoot {RUN_ID}">$chatgpt-pro-workforce dashboard troubleshoot RUN_ID</code><p>Verify the exact loopback server, run page, and snapshot; repair at most one identity-matched skill-owned process.</p><span class="command-impact">Bounded local repair</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce dashboard stop {RUN_ID}">$chatgpt-pro-workforce dashboard stop RUN_ID</code><p>Stop only the verified managed dashboard process; durable run state remains intact.</p><span class="command-impact">Local process only</span></div><button class="copy-command" type="button">Copy</button></li>
+            <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce export explorer {RUN_ID}">$chatgpt-pro-workforce export explorer RUN_ID</code><p>Build or recheck the self-contained research page from accepted data. If acceptance is incomplete, chat reports the missing gate instead.</p><span class="command-impact">Accepted data only · page does not execute</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce uninstall">$chatgpt-pro-workforce uninstall</code><p>Open a guided exact-target inventory, recoverable backup, and confirmation flow. Research data and shared control tools stay untouched.</p><span class="command-impact">Destructive only after confirmation</span></div><button class="copy-command" type="button">Copy</button></li>
             <li class="command-item"><div class="command-copyline"><code data-command-template="$chatgpt-pro-workforce help">$chatgpt-pro-workforce help</code><p>Show full chat help. Topics include status, dashboard, modes, allocation, concurrency, resume, controls, prerequisites, install, and uninstall.</p><span class="command-impact">Read only</span></div><button class="copy-command" type="button">Copy</button></li>
           </ul>

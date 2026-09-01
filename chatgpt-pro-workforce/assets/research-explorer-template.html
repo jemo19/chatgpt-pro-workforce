@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" data-research-explorer="workforce-research-v1">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>Research explorer</title>
+  <style>
+    :root {
+      --canvas: #f2efe8;
+      --paper: #fbfaf7;
+      --paper-soft: #eae6de;
+      --ink: #192133;
+      --muted: #4f5a6e;
+      --line: #c7c0b4;
+      --line-strong: #81796d;
+      --link: #245ca6;
+      --link-strong: #173f78;
+      --blue-soft: #dce8fa;
+      --attention: #7a4b00;
+      --attention-soft: #f7e9be;
+      --danger: #8a2f2f;
+      --danger-soft: #f5dcda;
+      --violet: #65449b;
+      --violet-soft: #e9e0f7;
+      --neutral: #626c7f;
+      --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; scroll-behavior: smooth; background: var(--canvas); scrollbar-color: var(--line-strong) var(--canvas); }
+    body { margin: 0; color: var(--ink); background: var(--canvas); font: 1rem/1.62 var(--sans); text-rendering: optimizeLegibility; }
+    ::selection { color: var(--ink); background: var(--attention-soft); }
+    a { color: var(--link); text-underline-offset: 0.18em; }
+    a:hover { color: var(--link-strong); }
+    button, input, select { font: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2 { font-family: var(--serif); font-weight: 650; letter-spacing: -0.025em; }
+    h1 { max-width: 24ch; margin-bottom: 0.45em; font-size: clamp(1.85rem, 3vw, 2rem); line-height: 1.05; }
+    h2 { margin-bottom: 0.7em; font-size: clamp(1.7rem, 3vw, 2rem); line-height: 1.08; }
+    h3 { margin-bottom: 0.35em; font-size: 1rem; line-height: 1.32; }
+    code, .record-id, .run-id { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+    .toolbar {
+      position: sticky; top: 0; z-index: 20;
+      display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(6, minmax(112px, 0.52fr)) auto auto;
+      gap: 10px; padding: 12px max(16px, calc((100vw - 1540px) / 2));
+      border-bottom: 1px solid var(--line-strong); background: var(--paper);
+    }
+    .toolbar label { display: grid; gap: 3px; color: var(--muted); font-size: 0.68rem; font-weight: 760; letter-spacing: 0.07em; text-transform: uppercase; }
+    .toolbar input, .toolbar select, .toolbar button { min-height: 42px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink); background: var(--paper); }
+    .toolbar input, .toolbar select { padding: 7px 10px; }
+    .toolbar button { align-self: end; padding: 7px 13px; cursor: pointer; }
+    .toolbar button:hover { border-color: var(--link); color: var(--link-strong); background: var(--blue-soft); }
+
+    .page { width: min(1540px, calc(100% - 40px)); margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr) 250px; gap: 34px; }
+    .contents, .trace { position: sticky; top: 82px; align-self: start; max-height: calc(100vh - 102px); overflow: auto; padding: 28px 0; }
+    .contents { border-right: 1px solid var(--line); padding-right: 22px; }
+    .contents strong, .trace h2 { display: block; margin-bottom: 12px; color: var(--ink); font: 760 0.72rem/1.2 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; }
+    .contents ol { margin: 0; padding: 0; list-style: none; counter-reset: section; }
+    .contents li { counter-increment: section; border-top: 1px solid var(--line); }
+    .contents a { display: grid; grid-template-columns: 2ch 1fr; gap: 8px; padding: 9px 0; color: var(--muted); font-size: 0.78rem; text-decoration: none; }
+    .contents a::before { content: counter(section, decimal-leading-zero); color: var(--neutral); font-family: var(--mono); }
+    .contents a:hover { color: var(--link); }
+    .trace { border-left: 1px solid var(--line); padding-left: 22px; }
+    .trace h2 { font-family: var(--sans); }
+    .trace p { color: var(--muted); font-size: 0.78rem; }
+    .trace dl { margin: 0; }
+    .trace dl > div { padding: 11px 0; border-top: 1px solid var(--line); }
+    .trace dt { color: var(--neutral); font-size: 0.68rem; font-weight: 760; letter-spacing: 0.07em; text-transform: uppercase; }
+    .trace dd { margin: 3px 0 0; overflow-wrap: anywhere; font: 0.76rem/1.45 var(--mono); }
+
+    main { min-width: 0; padding: 38px 0 80px; }
+    .report-header { padding: clamp(28px, 5vw, 64px); border: 1px solid var(--line-strong); background: var(--paper); }
+    .report-header > div:first-child { display: flex; justify-content: space-between; gap: 16px; margin-bottom: clamp(36px, 7vw, 88px); }
+    .topic { max-width: 64ch; margin-bottom: 34px; color: var(--muted); font: 1.12rem/1.55 var(--serif); }
+    .report-meta, .count-ledger, .record-links, .source dl, .artifact dl, .provenance dl { display: grid; gap: 12px; margin: 0; }
+    .report-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 18px; border-top: 1px solid var(--line); }
+    dl > div { min-width: 0; }
+    dt { color: var(--neutral); font-size: 0.68rem; font-weight: 760; letter-spacing: 0.07em; text-transform: uppercase; }
+    dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+    .state { display: inline-flex; align-items: center; min-height: 26px; padding: 3px 8px; border: 1px solid currentColor; border-radius: 3px; color: var(--neutral); font-size: 0.66rem; font-weight: 780; letter-spacing: 0.06em; text-transform: uppercase; }
+    .state-accepted, .state-approved, .state-high { color: var(--violet); background: var(--violet-soft); }
+    .state-open, .state-deferred, .state-medium { color: var(--attention); background: var(--attention-soft); }
+    .state-rejected, .state-low { color: var(--danger); background: var(--danger-soft); }
+    .state-bounded, .state-answered, .state-unresolved { color: var(--link-strong); background: var(--blue-soft); }
+    .run-id { align-self: center; color: var(--muted); font-size: 0.75rem; }
+    .noscript-note { margin: 20px 0 0; padding: 12px; border: 1px solid var(--attention); background: var(--attention-soft); }
+
+    .report-section { padding: clamp(42px, 7vw, 92px) clamp(8px, 3vw, 42px); border-bottom: 1px solid var(--line-strong); }
+    .summary-section { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(180px, 0.65fr); gap: 48px; }
+    .reading-copy { max-width: 72ch; font-family: var(--serif); font-size: 1.06rem; }
+    .reading-copy p:last-child { margin-bottom: 0; }
+    .count-ledger > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .count-ledger dd { font: 1.35rem/1 var(--mono); }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+    .section-heading p { color: var(--muted); font: 0.75rem/1.4 var(--mono); }
+    .record-stack { display: grid; gap: 16px; }
+    .record { border-top: 2px solid var(--line-strong); padding: 20px 0 4px; }
+    .record > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .record-id { color: var(--link-strong); font-size: 0.72rem; font-weight: 760; text-decoration: none; }
+    .claim { max-width: 68ch; font: 1.05rem/1.55 var(--serif); }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 15px 0; }
+    .tag { padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 0.7rem; }
+    .record-links { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 15px 0; }
+    .evidence-id { display: inline-block; margin: 2px 5px 2px 0; font: 0.74rem var(--mono); }
+    .limitation { padding: 11px 13px; border: 1px solid var(--attention); background: var(--attention-soft); color: var(--attention); font-size: 0.82rem; }
+    details { margin-top: 14px; }
+    details summary { width: max-content; color: var(--link); cursor: pointer; font-weight: 700; }
+    details p { max-width: 72ch; margin: 12px 0 0; font-family: var(--serif); }
+    .relationship-grid, .split-ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+    .compact-record { margin-bottom: 24px; }
+    .table-wrap { overflow-x: auto; margin-top: 28px; border: 1px solid var(--line); background: var(--paper); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    caption, figcaption { padding: 13px 15px; color: var(--ink); font-weight: 760; text-align: left; }
+    th, td { padding: 11px 14px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.03em; }
+    .source-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; }
+    .source h3 a { color: var(--ink); }
+    .source dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .data-figure { margin: 30px 0; border-top: 2px solid var(--line-strong); }
+    .data-figure > p { color: var(--muted); font-size: 0.8rem; }
+    .timeline { margin: 0; padding: 0; list-style: none; }
+    .timeline li { display: grid; grid-template-columns: 90px 1fr; gap: 18px; padding: 18px 0; border-top: 1px solid var(--line); }
+    .timeline time { font: 0.76rem var(--mono); }
+    .timeline p { margin-bottom: 5px; }
+    .series { margin: 0; padding: 0; list-style: none; }
+    .series li { display: grid; grid-template-columns: minmax(110px, 0.5fr) minmax(180px, 1.5fr) auto; gap: 16px; align-items: center; padding: 9px 0; }
+    .series-track { height: 12px; border: 1px solid var(--line); background: var(--paper-soft); }
+    .series-track > span { display: block; height: 100%; background: var(--link); }
+    .series strong { font: 0.74rem var(--mono); }
+    .artifact-list { margin: 0; padding: 0; list-style: none; }
+    .artifact { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(250px, 1fr) auto; gap: 24px; align-items: start; }
+    .artifact dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .artifact code { font-size: 0.68rem; overflow-wrap: anywhere; }
+    .artifact-link { align-self: center; }
+    .provenance { margin-top: 72px; padding: 28px; border: 1px solid var(--line-strong); background: var(--paper-soft); }
+    .provenance h2 { font-size: 1.4rem; }
+    .provenance dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .provenance p { margin: 24px 0 0; color: var(--muted); font-size: 0.8rem; }
+    .empty-record { padding: 18px; border: 1px dashed var(--line-strong); color: var(--muted); }
+    .muted { color: var(--muted); }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1250px) {
+      .toolbar { position: static; grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+      .toolbar label:first-child { grid-column: span 2; }
+    }
+    @media (max-width: 1100px) {
+      .page { grid-template-columns: 180px minmax(0, 1fr); }
+      .trace { display: none; }
+      .source-list { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .toolbar { position: static; grid-template-columns: 1fr 1fr; padding: 10px; }
+      .toolbar label:first-child { grid-column: 1 / -1; }
+      .page { width: min(100% - 24px, 1540px); display: block; }
+      .contents { position: static; max-height: none; overflow: visible; padding: 18px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .contents ol { display: flex; gap: 7px 15px; overflow-x: auto; }
+      .contents li { flex: 0 0 auto; border: 0; }
+      .contents a { display: block; }
+      .contents a::before { margin-right: 5px; }
+      main { padding-top: 12px; }
+      .report-header { padding: 28px 22px; }
+      .report-header > div:first-child { align-items: flex-start; flex-direction: column; margin-bottom: 46px; }
+      .report-meta, .summary-section, .relationship-grid, .split-ledger, .record-links, .artifact, .artifact dl, .provenance dl { grid-template-columns: 1fr; }
+      .report-section { padding: 48px 4px; }
+      .section-heading { align-items: flex-start; flex-direction: column; gap: 0; }
+      .source dl { grid-template-columns: 1fr 1fr; }
+      .series li { grid-template-columns: 1fr auto; }
+      .series-track { grid-column: 1 / -1; grid-row: 2; }
+    }
+    @media (max-height: 720px) and (min-width: 761px) {
+      .contents, .trace { top: 72px; max-height: calc(100vh - 84px); padding-top: 18px; }
+      .report-header { padding-top: 38px; padding-bottom: 38px; }
+      .report-header > div:first-child { margin-bottom: 36px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+    @media print {
+      :root { --canvas: #fff; --paper: #fff; --paper-soft: #f3f3f3; --ink: #000; --muted: #333; --line: #aaa; --line-strong: #555; }
+      .toolbar, .contents, .trace { display: none !important; }
+      .page { display: block; width: 100%; }
+      main { padding: 0; }
+      .report-header { box-shadow: none; break-after: avoid; }
+      .report-section, .record, .data-figure { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+      a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.72em; overflow-wrap: anywhere; }
+    }
+  </style>
+</head>
+<body>
+  <!-- IMPECCABLE DESIGN CONTRACT
+  Concept: Blue Hour Archive — a warm, portable evidence folio paired with the live midnight operations ledger.
+  Seed: 61ffdee4
+  One-line feel: A carefully indexed research file that is calm to read and hard to misinterpret.
+  Signature: Ruled folio sections, visible evidence IDs, and a fixed trace rail keep claims connected to their record.
+  FINISH REVIEW: First viewport explains the report; filters enhance but never gate content; mobile and reduced-height layouts preserve the reading path.
+  -->
+  <form class="toolbar" id="explorer-controls" role="search" aria-label="Filter accepted research">
+    <label>Search<input id="search" type="search" autocomplete="off" placeholder="Finding, source, category, or ID"></label>
+    <label>Confidence<select id="confidence"><option value="">All confidence</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNRESOLVED</option></select></label>
+    <label>Evidence<select id="evidence"><option value="">All evidence</option><option value="yes">Has sources</option><option value="no">No linked source</option></select></label>
+    <label>Category<select id="category"><option value="">All categories</option></select></label>
+    <label>Source type<select id="source-type"><option value="">All source types</option><option>PRIMARY</option><option>SECONDARY</option><option>DATASET</option><option>STANDARD</option><option>OTHER</option></select></label>
+    <label>Source quality<select id="quality"><option value="">All quality</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNRATED</option></select></label>
+    <label>Source order<select id="source-sort"><option value="id">Evidence ID</option><option value="title">Title</option><option value="date-new">Newest published</option><option value="date-old">Oldest published</option></select></label>
+    <button id="reset" type="reset">Reset</button>
+    <button id="print" type="button">Print</button>
+  </form>
+  <noscript><p class="noscript-note">Search and filters need JavaScript. The complete accepted research is still readable below.</p></noscript>
+  <div class="page">
+    <nav class="contents" aria-label="Research sections">
+      <strong>In this file</strong>
+      <ol>
+        <li><a href="#summary">Executive summary</a></li><li><a href="#findings">Key findings</a></li><li><a href="#themes">Themes</a></li><li><a href="#contradictions">Contradictions</a></li><li><a href="#decisions">Next steps</a></li><li><a href="#methods">Method</a></li><li><a href="#sources">Sources</a></li><li><a href="#comparisons">Comparisons</a></li><li><a href="#artifacts">Artifacts</a></li>
+      </ol>
+    </nav>
+    <main id="research-report">__RESEARCH_EXPLORER_CONTENT__</main>
+    <aside class="trace" aria-label="Reading guide">
+      <h2>How to read it</h2>
+      <p>The page is a view of accepted run data. The original files, source notes, and hashes remain the record.</p>
+      <dl><div><dt>Finding IDs</dt><dd>F01, F02…</dd></div><div><dt>Source IDs</dt><dd>S01, S02…</dd></div><div><dt>Confidence</dt><dd>Strength of accepted support, not certainty.</dd></div><div><dt>Limits</dt><dd>Known gaps stay beside each finding.</dd></div></dl>
+    </aside>
+  </div>
+  <script id="research-data" type="application/json">__RESEARCH_EXPLORER_DATA__</script>
+  <script>
+    (() => {
+      "use strict";
+      const controls = document.getElementById("explorer-controls");
+      const search = document.getElementById("search");
+      const confidence = document.getElementById("confidence");
+      const evidence = document.getElementById("evidence");
+      const category = document.getElementById("category");
+      const sourceType = document.getElementById("source-type");
+      const quality = document.getElementById("quality");
+      const sourceSort = document.getElementById("source-sort");
+      const findingCount = document.getElementById("finding-count");
+      const sourceCount = document.getElementById("source-count");
+      const findings = Array.from(document.querySelectorAll(".finding"));
+      const sources = Array.from(document.querySelectorAll(".source"));
+      const sourceList = document.getElementById("source-list");
+
+      Array.from(new Set(findings.flatMap((item) => item.dataset.categories.split("|").filter(Boolean))))
+        .sort((left, right) => left.localeCompare(right))
+        .forEach((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          category.appendChild(option);
+        });
+
+      function applyFilters() {
+        const query = search.value.trim().toLocaleLowerCase();
+        let visibleFindings = 0;
+        let visibleSources = 0;
+        findings.forEach((item) => {
+          const itemCategories = item.dataset.categories.split("|");
+          const shown = (!query || item.dataset.search.includes(query)) && (!confidence.value || item.dataset.confidence === confidence.value) && (!evidence.value || item.dataset.hasEvidence === evidence.value) && (!category.value || itemCategories.includes(category.value));
+          item.hidden = !shown;
+          if (shown) visibleFindings += 1;
+        });
+        sources.forEach((item) => {
+          const shown = (!query || item.dataset.search.includes(query)) && (!sourceType.value || item.dataset.type === sourceType.value) && (!quality.value || item.dataset.quality === quality.value);
+          item.hidden = !shown;
+          if (shown) visibleSources += 1;
+        });
+        const orderedSources = sources.slice().sort((left, right) => {
+          if (sourceSort.value === "title") return left.dataset.title.localeCompare(right.dataset.title);
+          if (sourceSort.value === "date-new") return right.dataset.date.localeCompare(left.dataset.date);
+          if (sourceSort.value === "date-old") return left.dataset.date.localeCompare(right.dataset.date);
+          return left.id.localeCompare(right.id, undefined, { numeric: true });
+        });
+        orderedSources.forEach((item) => sourceList.appendChild(item));
+        findingCount.textContent = `${visibleFindings} ${visibleFindings === 1 ? "finding" : "findings"} shown`;
+        sourceCount.textContent = `${visibleSources} ${visibleSources === 1 ? "source" : "sources"} shown`;
+      }
+
+      controls.addEventListener("input", applyFilters);
+      controls.addEventListener("reset", () => window.setTimeout(applyFilters, 0));
+      document.getElementById("print").addEventListener("click", () => window.print());
+      applyFilters();
+    })();
+  </script>
+</body>
+</html>

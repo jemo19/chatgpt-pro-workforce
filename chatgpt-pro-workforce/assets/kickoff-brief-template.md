@@ -47,7 +47,7 @@ updated_at: "{{ISO_8601}}"
 - Workforce profile path: `{{PATH}}`
 - Visible help: `$chatgpt-pro-workforce help`
 
-## Local storage, notes, and dashboard
+## Local storage, notes, dashboard, and explorer
 
 - Download storage policy / run root: `{{POLICY}}` / `{{PATH_OR_PENDING}}`
 - Retention / cleanup approval: `{{POLICY}}` / `{{ASK_FOR_EXACT_MANIFEST|EXPLICIT_RUN_OWNED_TEMP_POLICY|NO_CLEANUP}}`
@@ -56,6 +56,8 @@ updated_at: "{{ISO_8601}}"
 - Topic slug / folder authority: `{{SLUG_OR_PENDING}}` / `{{approved-within-confirmed-root|ask-each-topic|not-authorized}}`
 - Dashboard policy / dedicated root: `{{DISABLED|ON_DEMAND|ENABLED}}` / `{{PATH_OR_PENDING_OR_NOT_APPLICABLE}}`
 - Dashboard startup / current health: `{{AUTHORIZED|ON_DEMAND|DISABLED}}` / `{{HEALTHY|UNHEALTHY|STOPPED|UNKNOWN|DISABLED}}`
+- Completed-research explorer policy / final-output root: `{{ALWAYS|ASK_AT_COMPLETION|DISABLED|NOT_APPLICABLE}}` / `{{PATH_OR_PENDING_OR_NOT_APPLICABLE}}`
+- Companion accepted JSON: `{{INCLUDE_ACCEPTED_JSON|HTML_ONLY|ASK_AT_COMPLETION|NOT_APPLICABLE}}`
 
 ## Lane plan
 
@@ -97,3 +99,4 @@ updated_at: "{{ISO_8601}}"
 - Dashboard intent: `$chatgpt-pro-workforce dashboard {{RUN_ID}}`
 - Allocation-change intent: `$chatgpt-pro-workforce change allocation {{RUN_ID}}`
 - Concurrency-change intent: `$chatgpt-pro-workforce change concurrency {{RUN_ID}}`
+- Explorer intent: `$chatgpt-pro-workforce export explorer {{RUN_ID}}`

@@ -39,6 +39,9 @@ Create one note from `assets/run-state-template.md`. It is authoritative for:
   when retained, native artifact store, index path, and last note path;
 - dashboard policy, dedicated root, run directory, port, managed process/session
   identity, URL, health time, snapshot time/hash, and stale/failure state;
+- completed-research explorer policy, accepted data/template/output hashes,
+  run-owned and human-facing export paths, companion JSON choice, validation
+  results, and next action;
 - last durable checkpoint, reconciliation needs, failed approaches, pending
   user decisions, and exact resume cursor.
 
@@ -147,6 +150,9 @@ The integration handoff must answer:
   artifacts indexed rather than duplicated?
 - Is the optional dashboard healthy, stale, stopped, or unavailable; what was
   its last snapshot; and should the link be shown after a fresh health check?
+- Was a completed-research explorer requested; which accepted data and template
+  produced it; did mechanical, semantic, browser, offline, and print checks
+  pass; and do the run-owned and human-facing copies still match their hashes?
 
 A handoff must be sufficient for another Codex turn to continue without
 reconstructing state from browser memory.

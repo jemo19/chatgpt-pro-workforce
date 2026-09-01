@@ -80,6 +80,16 @@ Treat paths as untrusted hints until checked in the current invocation.
 - External assets, telemetry, or non-loopback serving allowed: `no`
 - Server lifetime expectation: `best-effort-current-host-session`
 
+## Completed research explorer
+
+- Explorer policy: `{{ALWAYS|ASK_AT_COMPLETION|DISABLED}}`
+- Build source: `accepted-sanitized-research-data-only`
+- Accepted explorer location: `{{RUN_OWNED_ACCEPTED_DIRECTORY_OR_PENDING}}`
+- Human-facing export root: `{{EXACT_OUTPUT_ROOT_OR_SAME_AS_ACCEPTED_OR_PENDING}}`
+- Companion JSON policy: `{{INCLUDE_ACCEPTED_JSON|HTML_ONLY|ASK_AT_COMPLETION}}`
+- Remote assets, analytics, storage, or network requests allowed: `no`
+- Existing accepted explorer may be silently overwritten: `no`
+
 ## Boundaries and review
 
 - Credentials, cookies, tokens, and secrets retained: `none`

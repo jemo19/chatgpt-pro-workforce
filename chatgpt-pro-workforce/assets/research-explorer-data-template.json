@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "report": {
+    "run_id": "RUN-YYYYMMDD-NNN",
+    "title": "Research title",
+    "topic": "Research topic",
+    "status": "ACCEPTED",
+    "scope": "The approved research boundary.",
+    "methodology": "How the accepted evidence was gathered and checked.",
+    "started_at": "2026-08-31T12:00:00Z",
+    "completed_at": "2026-08-31T14:00:00Z"
+  },
+  "executive_summary": [
+    "A short, accepted summary written for a human reader."
+  ],
+  "findings": [
+    {
+      "id": "F01",
+      "title": "Example finding",
+      "summary": "A concise statement supported by the linked sources.",
+      "confidence": "HIGH",
+      "categories": ["Example category"],
+      "source_ids": ["S01"],
+      "contradiction_ids": [],
+      "limitations": "State the relevant limit or uncertainty.",
+      "detail": "Optional deeper explanation for the explorer."
+    }
+  ],
+  "themes": [
+    {
+      "id": "T01",
+      "name": "Example category",
+      "summary": "Why these findings belong together.",
+      "finding_ids": ["F01"]
+    }
+  ],
+  "sources": [
+    {
+      "id": "S01",
+      "title": "Example source",
+      "publisher": "Publisher or author",
+      "publication_date": "2026-08-01",
+      "event_date": "2026-07-31",
+      "retrieved_at": "2026-08-31T13:00:00Z",
+      "url": "https://example.com/source",
+      "source_type": "PRIMARY",
+      "quality": "HIGH",
+      "finding_ids": ["F01"],
+      "note": "Why this source was used."
+    }
+  ],
+  "lanes": [
+    {
+      "id": "L01",
+      "name": "Example research lane",
+      "owner": "ChatGPT Pro worker",
+      "status": "ACCEPTED",
+      "contribution": "The accepted contribution from this lane."
+    }
+  ],
+  "contradictions": [],
+  "questions": [],
+  "decisions": [],
+  "recommendations": [
+    {
+      "id": "R01",
+      "title": "Example next step",
+      "detail": "A bounded recommendation based on accepted findings.",
+      "priority": "MEDIUM",
+      "finding_ids": ["F01"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "A01",
+      "name": "accepted-report.pdf",
+      "media_type": "application/pdf",
+      "size_bytes": 0,
+      "sha256": "",
+      "role": "Accepted native artifact",
+      "relative_link": ""
+    }
+  ],
+  "tables": [],
+  "timelines": [],
+  "series": []
+}

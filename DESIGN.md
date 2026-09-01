@@ -1,63 +1,87 @@
-# Dashboard design system
+# Research interface design system
 
-The status dashboard is an operations ledger: dense enough to be useful during
-a long research run, calm enough to leave open, and explicit about whether its
-local projection can be trusted.
+Blue Hour Archive is two related local surfaces: a midnight operations ledger
+for a live run and a warm evidence folio for accepted research. Both make IDs,
+state words, rules, and provenance easy to scan. The dashboard answers “what
+is happening now?”; the explorer answers “what did we learn, and why?”
 
 ## Principles
 
-- Put projection trust, run identity, next action, and the five registered
-  ratios in the first viewport.
-- Show exact numerators and denominators. Never manufacture an overall score.
-- Keep the last-known-good snapshot visible during a connection interruption.
-- Use color as a redundant state cue, not as the only state label.
-- Keep controls copy-only. The page reports state but does not orchestrate it.
-- Prefer flat ruled regions, compact labels, and strong typography over card
-  grids, gradients, glow, decoration, or oversized hero text.
+- Put snapshot trust, run identity, the next safe action, and five independent
+  registered ratios in the first view. Never invent an overall percentage.
+- Use flat, ruled regions and compact labels instead of floating-card grids.
+  No glass, elevation, gradients, glow, or decorative hero treatment.
+- Every status has words and a border or other non-color cue; controls copy
+  skill intents but never execute them.
+- Keep the last validated snapshot on screen while reconnecting. The explorer
+  is a reading copy; accepted files, source notes, hashes, and checks remain
+  the record.
 
-## Visual tokens
+## Tokens
 
-- Backgrounds: graphite-green `#07110f`, raised `#0b1815`, soft `#10221e`.
-- Text: mineral white `#edf8ef`, muted `#aec5b8`.
-- State accents: mint for accepted/current, sky for active/reconnecting, amber
-  for attention/stale, coral for unavailable/rejected.
-- Borders: `#28423a` and `#45675b`; six-pixel corner radius; no elevation
-  shadows.
-- Type: system sans for interface text and system monospace for identifiers,
-  hashes, timestamps, and diagnostics.
+- **Live canvas:** ink `#0B1020`, raised `#12192B`, soft `#18233A`, and trust
+  strip `#0D1426`; lines `#34415B` and `#60708E`.
+- **Live type and action:** paper `#F5F7FC`, muted `#B9C3D6`, quiet `#8E9AB2`,
+  cobalt `#8AB4F8`, strong cobalt `#5F93ED`, focus amber `#F2C66D`.
+- **Live status:** cobalt means loading/current/reconnecting and active work;
+  violet `#C6A9FF` means accepted/good; amber `#F2C66D` means
+  attention/stale/data error; coral `#FF8D85` means unavailable/bad.
+- **Explorer paper:** canvas `#F2EFE8`, paper `#FBFAF7`, soft paper
+  `#EAE6DE`, ink `#192133`, muted `#4F5A6E`, neutral `#626C7F`, rules
+  `#C7C0B4` and `#81796D`.
+- **Explorer links and states:** link `#245CA6`, strong link `#173F78`, blue
+  soft `#DCE8FA`; violet `#65449B`/`#E9E0F7` for accepted, approved, and high;
+  amber `#7A4B00`/`#F7E9BE` for open, deferred, and medium; danger
+  `#8A2F2F`/`#F5DCDA` for rejected and low; strong link/blue soft for bounded,
+  answered, and unresolved.
+- **Type:** interface text is `ui-sans-serif, system-ui, -apple-system,
+  BlinkMacSystemFont, "Segoe UI", sans-serif`; identifiers, hashes, ratios,
+  and diagnostics use `"SFMono-Regular", Consolas, "Liberation Mono",
+  monospace` with tabular figures. The explorer’s reading and major headings
+  use `ui-serif, Georgia, Cambria, "Times New Roman", serif`.
+- **Shape:** dashboard surfaces use 6px corners; compact controls and explorer
+  fields use 3–4px; tags and copy controls can reach 8px. Never exceed 8px.
+  Borders, not shadow, create separation.
+- **Scale:** body copy is 1rem at 1.5–1.62 line height; tight headings use
+  negative tracking. All main titles cap at 2rem / 32px.
 
-## Layout and responsive behavior
+## Layout and responsiveness
 
-The desktop first viewport is a two-column run ledger: situation and next
-action on the left, the five independent progress rails on the right. Lanes and
-attention follow immediately. Below 960 pixels the ledger stacks; below 650
-pixels progress labels and ratios remain together while rails take a full row.
+The dashboard begins as a continuous two-column ledger: run situation and next
+action left; the five progress rails right. Lanes and attention begin below.
+At 960px it stacks; at 650px labels and ratios stay together and rails take a
+full row. Detail grids, system panels, and control groups similarly collapse.
 
-Chrome automation or debugging bars can reduce the content viewport without
-changing the outer window. Visual acceptance therefore uses the measured
-content viewport, and the layout must remain useful at that reduced height.
+The explorer is a 1540px three-rail reading layout: contents, report, trace.
+The trace drops at 1100px; at 760px the contents become a horizontal local
+index and report metadata, records, source grids, and provenance stack. Its
+toolbar moves from many columns to four, then two. At desktop heights below
+720px, sticky rails shorten and header spacing contracts. Review the measured
+content viewport: browser automation/debug bars reduce usable height.
 
-## Projection trust states
+## Status, interaction, and accessibility
 
-The top strip exposes exactly six display states: `loading`, `current`,
+The dashboard trust strip has six display states: `loading`, `current`,
 `reconnecting`, `stale`, `data_error`, and `unavailable`. Successful reads reset
-the bounded retry sequence. Failures retry after 1, 2, 4, 8, 16, then 30 seconds
-with small jitter. A malformed or unsupported snapshot is distinct from a dead
-server. Projection diagnostics disclose the schema, last attempt, last success,
-failure count, retry timing, and relative snapshot URL.
+the retry sequence; failure waits 1, 2, 4, 8, 16, then 30 seconds with small
+jitter. Unsupported or malformed data is not a dead server. Diagnostics show
+the schema, last attempt and success, failure count, retry timing, and relative
+snapshot URL.
 
-## Interaction contract
+Use semantic landmarks, visible text labels, keyboard-visible 3px focus rings,
+and sufficient contrast. Progress tracks expose labels to assistive technology;
+the explorer stays readable without JavaScript. Respect reduced motion by
+removing smooth scroll and reducing animation/transition duration. Print the
+explorer as a clean, unfiltered reading copy.
 
-Refresh and retry perform read-only GET requests. Copy buttons put exact skill
-intents on the clipboard and confirm: “Copied — no action executed.” The help
-area explains consequences and includes the bounded dashboard troubleshooting
-intent. There are no remote assets, analytics, write endpoints, or hidden
-execution controls.
+Refresh and retry are read-only GETs. Copy confirmation says “Copied — no
+action executed.” No remote assets, analytics, write endpoints, or hidden
+execution controls belong on either surface; the local dashboard consumes only
+sanitized state and the explorer does not fetch in the background.
 
 ## Provenance
 
-The design interprets the operator's compact `stats.png` progress reference and
-the assigned impeccable concept seed `4f4856a6`. A bounded ChatGPT Pro web lane
-researched operational dashboards, accessibility, incident status patterns,
-and stale-data behavior; Codex independently selected and implemented this
-local, dependency-free design.
+Blue Hour Archive interprets the operator’s compact `stats.png` reference and
+the committed Impeccable seed `61ffdee4`. The final concept came from a
+logged-in ChatGPT Pro lane; Codex retained local review of safety, data,
+accessibility, and the dependency-free implementation.

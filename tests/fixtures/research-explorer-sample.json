@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "report": {
+    "run_id": "RUN-20260831-DEMO",
+    "title": "Local-first research workspace review",
+    "topic": "How local-first research tools handle capture, evidence, and handoff",
+    "status": "ACCEPTED_WITH_LIMITATIONS",
+    "scope": "Desktop tools with offline storage, source traceability, and export paths suitable for an individual research workflow.",
+    "methodology": "Two independent research lanes gathered product documentation and implementation evidence. Codex reconciled claims, checked source dates, and retained one unresolved portability question.",
+    "started_at": "2026-08-31T15:10:00Z",
+    "completed_at": "2026-08-31T18:42:00Z"
+  },
+  "executive_summary": [
+    "The strongest local-first tools keep the working set on the user's machine while making source identity visible beside the note or finding.",
+    "Export quality varies more than capture quality. A tool can feel excellent during research and still produce a weak handoff when links, attachments, or provenance do not survive the move.",
+    "No single option won every category. The practical choice depends on whether the user values structured evidence, flexible writing, or portable archives most."
+  ],
+  "findings": [
+    {
+      "id": "F01",
+      "title": "Local storage is common; inspectable provenance is not",
+      "summary": "Several tools keep notes locally, but fewer keep source identity, retrieval date, and claim linkage visible in the normal reading flow.",
+      "confidence": "HIGH",
+      "categories": ["Evidence", "Storage"],
+      "source_ids": ["S01", "S02"],
+      "contradiction_ids": [],
+      "limitations": "The review covered documented behavior and a bounded desktop sample, not every plugin ecosystem.",
+      "detail": "Local files help with ownership and backup, but they do not automatically create a useful evidence trail. The best implementations expose source metadata without making ordinary reading feel like database administration."
+    },
+    {
+      "id": "F02",
+      "title": "Attachment portability is the main handoff fault line",
+      "summary": "Markdown exports travel well until native attachments, generated files, or app-specific references are involved.",
+      "confidence": "HIGH",
+      "categories": ["Export", "Artifacts"],
+      "source_ids": ["S02", "S03"],
+      "contradiction_ids": ["C01"],
+      "limitations": "Cloud-sync and mobile-only paths were outside the accepted scope.",
+      "detail": "A durable handoff needs both readable notes and an inventory of native files. Relative links, stable names, and hashes make that package easier to move and verify."
+    },
+    {
+      "id": "F03",
+      "title": "Structured capture helps review but can slow first-pass work",
+      "summary": "Required source and confidence fields improve later review, while free-form tools remain faster during exploratory capture.",
+      "confidence": "MEDIUM",
+      "categories": ["Workflow", "Evidence"],
+      "source_ids": ["S01", "S04"],
+      "contradiction_ids": [],
+      "limitations": "The time cost depends heavily on templates and keyboard-driven capture support.",
+      "detail": "A useful compromise is progressive structure: capture quickly, then require evidence fields before a finding can move into the accepted set."
+    },
+    {
+      "id": "F04",
+      "title": "Human-readable final exports need their own acceptance check",
+      "summary": "A structurally valid data packet can still be hard to navigate, print, or audit as a finished research deliverable.",
+      "confidence": "HIGH",
+      "categories": ["Export", "Review"],
+      "source_ids": ["S03", "S05"],
+      "contradiction_ids": [],
+      "limitations": "Accessibility behavior was checked on current desktop Chrome and a narrow viewport only.",
+      "detail": "The final reading surface should be checked against the same accepted data, then tested for navigation, keyboard use, printing, and offline behavior."
+    }
+  ],
+  "themes": [
+    {
+      "id": "T01",
+      "name": "Evidence stays attached",
+      "summary": "Source identity and limitations should remain close to the finding they support.",
+      "finding_ids": ["F01", "F03"]
+    },
+    {
+      "id": "T02",
+      "name": "The handoff is part of the product",
+      "summary": "Exports, attachments, and final reading quality determine whether research survives outside the original tool.",
+      "finding_ids": ["F02", "F04"]
+    }
+  ],
+  "sources": [
+    {
+      "id": "S01",
+      "title": "Local storage and metadata documentation",
+      "publisher": "Example Research Tool",
+      "publication_date": "2026-07-18",
+      "event_date": "2026-07-18",
+      "retrieved_at": "2026-08-31T16:05:00Z",
+      "url": "https://example.com/docs/local-storage",
+      "source_type": "PRIMARY",
+      "quality": "HIGH",
+      "finding_ids": ["F01", "F03"],
+      "note": "Official documentation for storage and metadata behavior."
+    },
+    {
+      "id": "S02",
+      "title": "Export format reference",
+      "publisher": "Example Notes Project",
+      "publication_date": "2026-06-02",
+      "event_date": "2026-06-02",
+      "retrieved_at": "2026-08-31T16:22:00Z",
+      "url": "https://example.org/reference/export",
+      "source_type": "PRIMARY",
+      "quality": "HIGH",
+      "finding_ids": ["F01", "F02"],
+      "note": "Defines Markdown, attachment, and link export behavior."
+    },
+    {
+      "id": "S03",
+      "title": "Portable research archive test packet",
+      "publisher": "Independent test lane",
+      "publication_date": "2026-08-31",
+      "event_date": "2026-08-31",
+      "retrieved_at": "2026-08-31T17:10:00Z",
+      "url": "https://example.net/tests/archive-packet",
+      "source_type": "OTHER",
+      "quality": "MEDIUM",
+      "finding_ids": ["F02", "F04"],
+      "note": "Bounded synthetic export test; useful for behavior, not market coverage."
+    },
+    {
+      "id": "S04",
+      "title": "Structured capture workflow guide",
+      "publisher": "Example Knowledge Lab",
+      "publication_date": "2026-05-11",
+      "event_date": "2026-05-11",
+      "retrieved_at": "2026-08-31T17:28:00Z",
+      "url": "https://example.edu/guides/structured-capture",
+      "source_type": "SECONDARY",
+      "quality": "MEDIUM",
+      "finding_ids": ["F03"],
+      "note": "Supports workflow tradeoffs; not treated as product-specific evidence."
+    },
+    {
+      "id": "S05",
+      "title": "Accessible offline report checklist",
+      "publisher": "Example Standards Group",
+      "publication_date": "2026-03-20",
+      "event_date": "2026-03-20",
+      "retrieved_at": "2026-08-31T17:45:00Z",
+      "url": "https://example.com/standards/offline-reports",
+      "source_type": "STANDARD",
+      "quality": "HIGH",
+      "finding_ids": ["F04"],
+      "note": "Used for keyboard, contrast, print, and fallback checks."
+    }
+  ],
+  "lanes": [
+    {
+      "id": "L01",
+      "name": "Product documentation",
+      "owner": "ChatGPT Pro worker",
+      "status": "ACCEPTED",
+      "contribution": "Storage, metadata, and export claims with primary-source links."
+    },
+    {
+      "id": "L02",
+      "name": "Independent portability review",
+      "owner": "ChatGPT Pro worker",
+      "status": "ACCEPTED_WITH_LIMITATIONS",
+      "contribution": "Cross-tool archive and human-reading comparison."
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "C01",
+      "title": "Documentation and observed attachment behavior differ",
+      "summary": "One documented export path promises relative attachment links, while the bounded test produced app-specific references for generated files.",
+      "status": "OPEN",
+      "finding_ids": ["F02"],
+      "source_ids": ["S02", "S03"]
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q01",
+      "question": "Do mobile exports preserve the same attachment relationships?",
+      "status": "DEFERRED",
+      "detail": "Mobile behavior was outside this run and should be tested before a cross-device recommendation.",
+      "finding_ids": ["F02"]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D01",
+      "title": "Keep native artifacts beside the accepted research packet",
+      "status": "APPROVED",
+      "rationale": "This preserves exact bytes while letting notes and the explorer link to one stable inventory.",
+      "finding_ids": ["F02", "F04"]
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "R01",
+      "title": "Use progressive evidence fields",
+      "detail": "Allow fast capture, then require sources, confidence, and limitations before a finding enters the accepted set.",
+      "priority": "HIGH",
+      "finding_ids": ["F01", "F03"]
+    },
+    {
+      "id": "R02",
+      "title": "Test the final reading copy separately",
+      "detail": "Run keyboard, narrow-screen, offline, source-trace, and print checks against the exact accepted export.",
+      "priority": "HIGH",
+      "finding_ids": ["F04"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "A01",
+      "name": "accepted-research-packet.json",
+      "media_type": "application/json",
+      "size_bytes": 18422,
+      "sha256": "2f8e1f802c848ea4277b5d78102b6bd37950bd0c2b35bda8a22363ed0540196c",
+      "role": "Accepted structured evidence packet",
+      "relative_link": "artifacts/accepted-research-packet.json"
+    },
+    {
+      "id": "A02",
+      "name": "source-register.csv",
+      "media_type": "text/csv",
+      "size_bytes": 4120,
+      "sha256": "e7f4e57376a98e46cf7546c3aeab6c2ff87321940437380af4dbbdedcfc08651",
+      "role": "Portable source inventory",
+      "relative_link": "artifacts/source-register.csv"
+    }
+  ],
+  "tables": [
+    {
+      "id": "TB01",
+      "title": "Workflow tradeoffs",
+      "columns": ["Approach", "Capture speed", "Review strength", "Export portability"],
+      "rows": [
+        ["Free-form files", "High", "Low to medium", "High"],
+        ["Structured evidence records", "Medium", "High", "Medium to high"],
+        ["App-native database", "High", "High in app", "Low to medium"]
+      ],
+      "note": "Qualitative comparison from the accepted bounded sample."
+    }
+  ],
+  "timelines": [
+    {
+      "id": "TL01",
+      "title": "Research and acceptance",
+      "events": [
+        {
+          "date": "15:10",
+          "title": "Scope frozen",
+          "detail": "Three workflow questions and five acceptance checks registered.",
+          "finding_ids": [],
+          "source_ids": []
+        },
+        {
+          "date": "17:52",
+          "title": "Contradiction preserved",
+          "detail": "Attachment behavior conflict moved into the open-questions set.",
+          "finding_ids": ["F02"],
+          "source_ids": ["S02", "S03"]
+        },
+        {
+          "date": "18:42",
+          "title": "Accepted with limitations",
+          "detail": "Four findings accepted; one mobile portability question deferred.",
+          "finding_ids": ["F01", "F02", "F03", "F04"],
+          "source_ids": ["S01", "S02", "S03", "S04", "S05"]
+        }
+      ]
+    }
+  ],
+  "series": [
+    {
+      "id": "SR01",
+      "title": "Accepted findings by confidence",
+      "unit": "findings",
+      "points": [
+        {"label": "High", "value": 3},
+        {"label": "Medium", "value": 1},
+        {"label": "Low", "value": 0},
+        {"label": "Unresolved", "value": 0}
+      ],
+      "note": "Counts only accepted findings in this packet."
+    }
+  ]
+}
