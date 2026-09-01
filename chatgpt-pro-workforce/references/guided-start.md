@@ -227,6 +227,21 @@ when requested (recommended), `B. Enabled` maintains snapshots and reconnects
 the loopback server when authorized, and `C. Disabled` creates or serves no
 dashboard files.
 
+For research runs, read
+[completed research explorer](research-explorer.md) and ask how the accepted
+result should be packaged for a human reader. Show every choice:
+
+```text
+A. Always build it — create a searchable, self-contained HTML explorer after each accepted research run. (Recommended)
+B. Ask at the end — offer the explorer when the accepted packet is ready.
+C. Do not build it — keep the normal accepted files and notes only.
+```
+
+Explain that the explorer is an offline view of the same accepted findings,
+sources, contradictions, limitations, and artifacts. It adds some Codex
+preparation and checking, but it does not send data anywhere or replace the raw
+evidence. Confirm the exact final-output folder before exporting a copy there.
+
 ### 8. Workforce shape
 
 Recommend a bounded lane plan rather than asking the user to design one. State:
@@ -313,6 +328,7 @@ in chat:
 - explicit exclusions and permission boundaries;
 - selected control route, prerequisite readiness/plan state, and any manual step;
 - download root/retention, note/vault/topic policy, and dashboard policy/health;
+- completed-research explorer policy and final-output location;
 - deliverables and mechanical/semantic checks;
 - unresolved decisions or action-time approvals.
 

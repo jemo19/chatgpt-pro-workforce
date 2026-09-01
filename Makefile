@@ -17,6 +17,7 @@ test:
 	$(PYTHON) tests/test_behavior.py $(SKILL_DIR)
 	$(PYTHON) tests/test_forward.py $(SKILL_DIR)
 	$(PYTHON) tests/test_status_dashboard.py $(SKILL_DIR)
+	$(PYTHON) tests/test_research_explorer.py $(SKILL_DIR)
 	$(PYTHON) tests/test_obsidian_locator.py $(SKILL_DIR)
 
 check-public:

@@ -124,6 +124,17 @@ Bars are derived only from the registered units below.
 - Snapshot updated at / SHA-256: {{ISO_8601_OR_NEVER}} / `{{HASH_OR_NONE}}`
 - Snapshot freshness / failure: `{{CURRENT|STALE|UNKNOWN}}` / {{ERROR_OR_NONE}}
 
+## Completed research explorer
+
+- Policy / status: `{{ALWAYS|ASK_AT_COMPLETION|DISABLED}}` / `{{NOT_PLANNED|PLANNED|BUILT|VERIFIED|ACCEPTED|REJECTED|BLOCKED|NOT_APPLICABLE}}`
+- Accepted data path / SHA-256: `{{PATH_OR_NONE}}` / `{{HASH_OR_NONE}}`
+- Template SHA-256: `{{HASH_OR_NONE}}`
+- Run-owned HTML path / SHA-256: `{{PATH_OR_NONE}}` / `{{HASH_OR_NONE}}`
+- Human-facing export path / SHA-256: `{{PATH_OR_NONE}}` / `{{HASH_OR_NONE}}`
+- Companion JSON path / SHA-256: `{{PATH_OR_NONE}}` / `{{HASH_OR_NONE}}`
+- Mechanical / semantic result: `{{NOT_RUN|PASS|FAIL|BLOCKED}}` / `{{NOT_RUN|PASS|FAIL|BLOCKED}}`
+- Next action: {{ACTION_OR_NONE}}
+
 ## Pause, capacity, and resume
 
 - Pause reason: `{{NONE|USER_REQUEST|USAGE_LIMIT|CONTROL_LOSS|EXTERNAL_BLOCKER}}`
@@ -150,4 +161,5 @@ Bars are derived only from the registered units below.
 - Change concurrency: `$chatgpt-pro-workforce change concurrency {{RUN_ID}}`
 - Pause: `$chatgpt-pro-workforce pause {{RUN_ID}}`
 - Resume: `$chatgpt-pro-workforce resume {{RUN_ID}}`
+- Export research explorer: `$chatgpt-pro-workforce export explorer {{RUN_ID}}`
 - Help: `$chatgpt-pro-workforce help`

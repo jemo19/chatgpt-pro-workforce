@@ -31,6 +31,7 @@ EXPECTED = {
     "references/prerequisite-setup.md",
     "references/artifact-storage-and-cleanup.md",
     "references/local-status-dashboard.md",
+    "references/research-explorer.md",
     "references/installation-and-uninstall.md",
     "assets/capability-report-template.md",
     "assets/worker-prompt-template.md",
@@ -49,8 +50,11 @@ EXPECTED = {
     "assets/workforce-profile-template.md",
     "assets/status-dashboard-template.html",
     "assets/status-data-template.json",
+    "assets/research-explorer-template.html",
+    "assets/research-explorer-data-template.json",
     "scripts/obsidian_locator.py",
     "scripts/status_dashboard.py",
+    "scripts/research_explorer.py",
 }
 
 
@@ -143,6 +147,7 @@ def main() -> int:
     runtime_scripts = [path for path in files if "/scripts/" in f"/{path.relative_to(ROOT).as_posix()}"]
     if [path.relative_to(ROOT).as_posix() for path in runtime_scripts] != [
         "scripts/obsidian_locator.py",
+        "scripts/research_explorer.py",
         "scripts/status_dashboard.py",
     ]:
         errors.append("unexpected runtime script inventory")
@@ -339,6 +344,10 @@ def main() -> int:
     platform_stacks = (ROOT / "references/platform-control-stacks.md").read_text()
     install_lifecycle = (ROOT / "references/installation-and-uninstall.md").read_text()
     orchestration = (ROOT / "references/orchestration.md").read_text()
+    explorer = (ROOT / "references/research-explorer.md").read_text()
+    explorer_html = (ROOT / "assets/research-explorer-template.html").read_text()
+    explorer_script = (ROOT / "scripts/research_explorer.py").read_text()
+    explorer_data = json.loads((ROOT / "assets/research-explorer-data-template.json").read_text())
 
     concurrency_text = re.sub(
         r"\s+", " ", re.sub(
@@ -535,6 +544,50 @@ def main() -> int:
         errors.append("dashboard uses unsafe substring state classification")
 
     for term in (
+        "ALWAYS", "ASK_AT_COMPLETION", "DISABLED", "accepted/",
+        "self-contained HTML", "exact configured", "rehash both copies",
+        "no-JavaScript", "print",
+    ):
+        if term.lower() not in explorer.lower() and term.lower() not in workforce_profile.lower():
+            errors.append(f"research explorer contract missing: {term}")
+    if set(explorer_data) != {
+        "schema_version", "report", "executive_summary", "findings", "themes",
+        "sources", "lanes", "contradictions", "questions", "decisions",
+        "recommendations", "artifacts", "tables", "timelines", "series",
+    }:
+        errors.append("research explorer data template top-level schema mismatch")
+    for term in (
+        "validate_data", "os.replace", "DATA_MARKER", "SAFE_ID", "_safe_source_url",
+        "_safe_relative_link", "expected_run_id", "MAX_DATA_BYTES",
+    ):
+        if term not in explorer_script:
+            errors.append(f"research explorer helper missing safety mechanism: {term}")
+    data_marker = "__RESEARCH_EXPLORER_DATA__"
+    if explorer_html.count(data_marker) != 1:
+        errors.append("research explorer HTML must contain one data marker")
+    if ".innerHTML" in explorer_html:
+        errors.append("research explorer injects data with innerHTML")
+    if re.search(r"<(?:script|link|img)[^>]+(?:src|href)=[\"'](?:https?:)?//", explorer_html, re.I):
+        errors.append("research explorer loads an external asset")
+    if re.search(r"\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(", explorer_html):
+        errors.append("research explorer contains network request code")
+    for term in (
+        "workforce-research-v1", "prefers-reduced-motion", "focus-visible",
+        "<noscript", "Executive summary", "Key findings", "Sources",
+        "Contradictions", "Method", "Artifacts",
+    ):
+        if term not in explorer_html:
+            errors.append(f"research explorer craft/fallback marker missing: {term}")
+    for name, document in (("dashboard", dashboard_html), ("research explorer", explorer_html)):
+        if document.count("{") != document.count("}"):
+            errors.append(f"{name} stylesheet/script braces are unbalanced")
+    if "backdrop-filter" in explorer_html or re.search(r"box-shadow:(?!\s*none)", explorer_html):
+        errors.append("research explorer violates the no-glass/no-elevation contract")
+    oversized_title = re.compile(r"font-size:\s*clamp\([^;]*,\s*(?:2\.[1-9]|[3-9])(?:rem)?\s*\)")
+    if oversized_title.search(dashboard_html) or oversized_title.search(explorer_html):
+        errors.append("research interface title exceeds the 32px design cap")
+
+    for term in (
         "chrome:control-chrome",
         "mcp__computer_use_linux__*",
         "mcp__chrome_devtools__*",
@@ -657,6 +710,7 @@ def main() -> int:
         "Chrome automation-infobar-aware content viewport capture geometry",
         "four independently recorded Linux control layers and macOS/Windows truth boundaries",
         "copy-only dashboard help controls and confirmation-gated recoverable uninstall",
+        "self-contained accepted-research explorer schema, traceability, and offline boundary",
     )
     for check in checks:
         print(f"PASS: {check}")

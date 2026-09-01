@@ -15,10 +15,6 @@ assign to it.
 I built it for jobs that are too large for one long chat but still need someone
 keeping track of the details.
 
-> [!IMPORTANT]
-> This is an unofficial community project. It is not made, endorsed, or
-> maintained by OpenAI.
-
 ## What it does
 
 - Walks you through setup if you invoke the skill by itself.
@@ -40,6 +36,9 @@ keeping track of the details.
   change that setting later.
 - Includes a local status page with progress, worker state, problems, controls,
   and copy buttons.
+- Can turn an accepted research run into one searchable HTML file for reading,
+  filtering, source tracing, and printing without a server or internet
+  connection.
 
 ## The status page
 
@@ -50,12 +49,8 @@ The first screen shows the run, what should happen next, and five separate
 progress measurements. It does not roll everything into a made-up overall
 percentage.
 
-![Workforce dashboard overview](docs/images/dashboard-overview-v1.1.jpg)
-
 The lower part of the page has the full control list. You can copy a command and
 paste it into Codex without having to remember the wording.
-
-![Workforce dashboard controls](docs/images/dashboard-controls-v1.1.jpg)
 
 If the page loses its local connection, it keeps the last good information on
 screen, says that it is reconnecting, and retries. If that does not fix it, use:
@@ -69,6 +64,19 @@ one verified skill-owned dashboard process, but it will not kill an unknown
 process that happens to be using the same port.
 
 More details: [Dashboard and controls](docs/dashboard-and-controls.md)
+
+## Open the research as a page
+
+Research runs can also produce a self-contained HTML explorer after the work
+has passed review. Open it like a normal file. It keeps the summary, findings,
+sources, contradictions, limitations, recommendations, and accepted artifact
+list together, with search and filters built in.
+
+It does not call a server, load a CDN, track you, or fetch sources in the
+background. The underlying accepted files and source notes still remain the
+record; the explorer is the easier way to read and move through them.
+
+More details: [Research explorer](docs/research-explorer.md)
 
 ## What you need
 
@@ -135,8 +143,10 @@ list. The setup covers:
 - where downloaded files should go and when they may be cleaned up;
 - whether you want Obsidian notes and where they should live;
 - whether the local dashboard should be off, on demand, or enabled;
+- whether accepted research should always get an interactive HTML explorer,
+  be offered one at the end, or skip it;
 - browser, desktop-control, and permission readiness;
-- what counts as finished.
+- what you want back at the end and how thoroughly it needs to be checked.
 
 It shows you the final setup before launching workers.
 
@@ -182,6 +192,7 @@ These are instructions you paste into Codex. They are not shell commands.
 | Change the future worker limit | `$chatgpt-pro-workforce change concurrency RUN_ID` |
 | Open or refresh the dashboard | `$chatgpt-pro-workforce dashboard RUN_ID` |
 | Diagnose a dashboard that will not load | `$chatgpt-pro-workforce dashboard troubleshoot RUN_ID` |
+| Build or recheck the accepted research page | `$chatgpt-pro-workforce export explorer RUN_ID` |
 | Show all controls and examples | `$chatgpt-pro-workforce help` |
 | Start the guided removal process | `$chatgpt-pro-workforce uninstall` |
 

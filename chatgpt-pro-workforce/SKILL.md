@@ -37,10 +37,13 @@ hide a valid choice behind an internal token. Do not launch a worker or perform
 a desktop action during intake.
 
 On first use, also ask about ChatGPT Pro download storage and retention,
-Obsidian/research-note location and topic folders, and the optional localhost
-dashboard. Read [artifact storage and cleanup](references/artifact-storage-and-cleanup.md),
+Obsidian/research-note location and topic folders, the optional localhost
+dashboard, and whether accepted research should ship with an interactive
+human-readable explorer. Read [artifact storage and cleanup](references/artifact-storage-and-cleanup.md),
 [Obsidian research vault](references/obsidian-research-vault.md), and
-[local status dashboard](references/local-status-dashboard.md). Store reusable
+[local status dashboard](references/local-status-dashboard.md), then read
+[completed research explorer](references/research-explorer.md) for research
+runs. Store reusable
 choices in the workforce profile; do not create folders, start a server, or
 delete files merely because a preference was discussed.
 
@@ -62,8 +65,8 @@ the first worker launch.
 ## Status, help, pause, and resume intents
 
 When an invocation asks for `status`, `tell me more`, `pause`, `resume`,
-`continue`, discovered-topic review, allocation or concurrency change, `stop`,
-or `help`, read
+`continue`, discovered-topic review, allocation or concurrency change,
+`export explorer`, `stop`, or `help`, read
 [progress reporting and run controls](references/progress-and-controls.md)
 before the normal workflow. These are recognized conversational intents, not
 native registered subcommands or background notifications.
@@ -94,6 +97,10 @@ Use the [dashboard page](assets/status-dashboard-template.html),
 [public status schema](assets/status-data-template.json), and
 [dashboard helper](scripts/status_dashboard.py) only through the safety and
 lifecycle rules in [local status dashboard](references/local-status-dashboard.md).
+The dashboard is live operational status. It is separate from the accepted,
+portable [research explorer page](assets/research-explorer-template.html),
+[research explorer schema](assets/research-explorer-data-template.json), and
+[research explorer helper](scripts/research_explorer.py).
 
 ## Non-negotiable contract
 
@@ -311,6 +318,16 @@ prefer trash, preserve accepted/raw evidence according to policy, and record a
 per-file outcome using the
 [cleanup plan](assets/cleanup-plan-template.md).
 
+For a research run whose explorer policy is `ALWAYS`, or when the user selects
+it at completion under `ASK_AT_COMPLETION`, read
+[completed research explorer](references/research-explorer.md). Build only from
+accepted, sanitized, traceable research data. First generate and verify one
+self-contained HTML file inside the run-owned `accepted/` directory, hash it,
+and register it as an accepted artifact. If the configured handoff also places
+results in Downloads or another final-output folder, copy those exact verified
+bytes to one explicit filename and rehash both copies. Never use the general
+Downloads directory as a cleanup boundary.
+
 ## Phase 7: verify and accept
 
 Read [evidence and verification](references/evidence-and-verification.md).
@@ -344,7 +361,8 @@ run-state note. Persist scope registries, progress denominators, allocation,
 qualitative Codex-usage band, reporting cadence, invocation-preflight history,
 prerequisite-plan state, capture-geometry limitations, storage/cleanup policy,
 note/vault/topic paths, dashboard health/snapshot state, pause/capacity
-evidence, and the exact resume cursor.
+evidence, research-explorer policy/data/template/output hashes, and the exact
+resume cursor.
 Persist every unfinished, manual, blocked, or `OUTCOME_UNKNOWN` desktop action
 before context compaction or handoff.
 
@@ -373,6 +391,9 @@ A run is complete only when:
 - Codex's independent verification is recorded;
 - accepted, rejected, partial, and unresolved material are distinguished;
 - configured vault and state records are updated;
+- a requested or `ALWAYS` completed-research explorer is generated from
+  accepted data, mechanically and semantically checked, hash-bound, and linked
+  from the handoff;
 - active lanes are closed or explicitly handed off;
 - the run is not merely `PAUSED`, `PAUSING`, `LIMIT_PAUSED`, or `RESUMING`;
 - no desktop action has an unreconciled `OUTCOME_UNKNOWN` disposition;

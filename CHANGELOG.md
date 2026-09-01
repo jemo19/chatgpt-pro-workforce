@@ -5,10 +5,20 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
-### Planned
+## [1.2.0] - 2026-08-31
 
-- Incorporate evidence from public test runs without weakening permission,
-  verification, or platform truth boundaries.
+### Added
+
+- A self-contained completed-research explorer with accepted-data validation,
+  source/finding traceability, offline search and filters, print support, safe
+  export placement, and deterministic build/verify tooling.
+- A guided explorer policy and copyable `export explorer` run control.
+
+### Changed
+
+- Replaced the rejected green dashboard with a new shared dashboard/research
+  reading system designed through a bounded ChatGPT Pro web lane.
+- Reworked README wording and documented the new interface system.
 
 ## [1.1.0] - 2026-08-31
 
@@ -44,6 +54,7 @@ All notable changes to this project are documented here. The project follows
 - Sanitized loopback-only dashboard with detailed help and copyable controls.
 - Dependency-free runtime helpers and public deterministic validation suites.
 
-[Unreleased]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/jemo19/chatgpt-pro-workforce/releases/tag/v1.0.0

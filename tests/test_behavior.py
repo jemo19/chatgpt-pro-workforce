@@ -636,6 +636,7 @@ def main() -> int:
         "$chatgpt-pro-workforce change allocation {RUN_ID}",
         "$chatgpt-pro-workforce change concurrency {RUN_ID}",
         "$chatgpt-pro-workforce dashboard troubleshoot {RUN_ID}",
+        "$chatgpt-pro-workforce export explorer {RUN_ID}",
         "$chatgpt-pro-workforce uninstall",
         "$chatgpt-pro-workforce help",
     )
@@ -668,6 +669,21 @@ def main() -> int:
         "D. Stop here",
     )
     record("PC90", "guided preflight enumerates complete choices", "lettered purpose/tradeoff menus", ",".join(term for term in menu_markers if term in guided_text), all(term in guided_text for term in menu_markers))
+    explorer_text = (ROOT / "references/research-explorer.md").read_text()
+    explorer_profile = ("ALWAYS", "ASK_AT_COMPLETION", "DISABLED")
+    explorer_menu = (
+        "A. Always build it", "B. Ask at the end", "C. Do not build it",
+    )
+    record(
+        "PC91",
+        "guided setup covers completed research explorer",
+        "all policies, complete menu, accepted-data and exact-output boundary",
+        ",".join(term for term in (*explorer_profile, *explorer_menu) if term in (profile_text + guided_text + explorer_text)),
+        all(term in profile_text and term in explorer_text for term in explorer_profile)
+        and all(term in guided_text for term in explorer_menu)
+        and "accepted, sanitized" in explorer_text
+        and "exact configured" in explorer_text,
+    )
 
     failures = [result for result in RESULTS if result[1] == FAIL]
     for case_id, classification, title, details in RESULTS:

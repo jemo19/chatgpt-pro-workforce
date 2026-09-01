@@ -55,9 +55,10 @@ $chatgpt-pro-workforce change concurrency [RUN_ID] [1|2|FINITE_MAXIMUM]
 $chatgpt-pro-workforce dashboard [RUN_ID]
 $chatgpt-pro-workforce dashboard troubleshoot [RUN_ID]
 $chatgpt-pro-workforce dashboard stop [RUN_ID]
+$chatgpt-pro-workforce export explorer [RUN_ID]
 $chatgpt-pro-workforce stop [RUN_ID]
 $chatgpt-pro-workforce uninstall
-$chatgpt-pro-workforce help [status|dashboard|modes|allocation|concurrency|resume|controls|prerequisites|install|uninstall]
+$chatgpt-pro-workforce help [status|dashboard|explorer|modes|allocation|concurrency|resume|controls|prerequisites|install|uninstall]
 ```
 
 Resolve a missing run ID only when exactly one active run or one most recently
@@ -83,6 +84,11 @@ identifying question using safe run ID and outcome text only.
   verifies the rendered page through the available Chrome/browser route, and
   may perform at most one authorized bounded restart of an identity-matched
   skill-owned process. It never kills an unknown port owner.
+- `export explorer` reads the completed-research explorer policy and accepted
+  run state, then builds or re-verifies the exact human-readable HTML export.
+  It never launches a worker or promotes unaccepted data. If the run is not
+  ready, report the missing acceptance gate instead of building a provisional
+  file that looks final.
 - `stop` requires explicit intent, persists final state, and must not be
   confused with a recoverable pause.
 - `uninstall` opens the exact-target, confirmation-gated, recoverable procedure
@@ -323,6 +329,11 @@ guided local lifecycle operation that first inventories one exact active
 installation, offers a recoverable backup, excludes research data and shared
 control tooling, and asks for explicit confirmation. The page itself must not
 delete, rename, stop, or call an uninstall endpoint.
+
+Include a copyable `$chatgpt-pro-workforce export explorer RUN_ID` intent for
+research runs. Explain that it builds a self-contained human-readable file only
+from accepted data, or reports which acceptance checks are still missing. The
+dashboard itself never creates or overwrites that file.
 
 Include a copyable `$chatgpt-pro-workforce change concurrency RUN_ID` intent.
 State that two is the safe default, values above two are high risk and require

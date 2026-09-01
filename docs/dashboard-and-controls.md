@@ -56,6 +56,7 @@ $chatgpt-pro-workforce resume RUN_ID
 $chatgpt-pro-workforce change allocation RUN_ID
 $chatgpt-pro-workforce change concurrency RUN_ID FINITE_MAXIMUM
 $chatgpt-pro-workforce dashboard troubleshoot RUN_ID
+$chatgpt-pro-workforce export explorer RUN_ID
 $chatgpt-pro-workforce help
 $chatgpt-pro-workforce uninstall
 ```
@@ -72,3 +73,22 @@ root-identity, run-page, or snapshot faults and allows at most one bounded
 restart of an identity-matched skill-owned process; it never kills an unknown
 port owner. Closing the server or ending its host session removes that live
 surface; the durable run state remains the source for a future refresh.
+
+## What it looks like
+
+The live page uses the Blue Hour Archive system: a deep navy working surface,
+cobalt for current transport and progress, violet for accepted work, amber for
+attention, and coral for failure. It is laid out as a ruled operations ledger,
+not a pile of floating cards. Run identity, snapshot trust, the next safe
+action, five separate ratios, and visible worker state stay near the top.
+
+Status labels include their words and borders, so color is never the only cue.
+Titles stay compact, corners stay close to square, and identifiers, timestamps,
+ratios, and hashes use tabular monospace. The companion completed-research page
+uses warm paper and reading typography while keeping the same IDs and state
+language.
+
+The Chrome automation or debugging bar can take height away from the content
+viewport and change the apparent aspect ratio. Review the measured content
+viewport, not just the outer browser window; the dashboard has a reduced-height
+layout for that case.

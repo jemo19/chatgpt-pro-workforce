@@ -29,6 +29,14 @@ Check, as applicable:
 
 A zero-error structural checker does not prove semantic correctness.
 
+For a completed-research explorer, mechanical acceptance also checks the
+embedded schema and run ID, internal finding/source references, offline asset
+boundary, safe relative artifact links, keyboard-visible interaction, print
+layout, and stable post-validation hash. Semantic acceptance compares the
+rendered summary, findings, confidence, contradictions, limitations, and
+recommendations with the same accepted source packet; attractive presentation
+never upgrades evidence.
+
 ## Semantic gate
 
 Check, as applicable:

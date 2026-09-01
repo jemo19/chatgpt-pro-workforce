@@ -74,6 +74,14 @@ created_at: "{{ISO_8601}}"
 - Verified URL / snapshot time/hash: `{{URL_OR_NONE}}` / {{ISO_8601_OR_NEVER}} / `{{HASH_OR_NONE}}`
 - Managed process/session identity and stop/restart caution: {{IDENTITY_OR_NONE}}
 
+## Completed research explorer
+
+- Policy / disposition: `{{ALWAYS|ASK_AT_COMPLETION|DISABLED}}` / `{{ACCEPTED|ACCEPTED_WITH_LIMITATIONS|REJECTED|BLOCKED|NOT_APPLICABLE}}`
+- Run-owned HTML / SHA-256: `{{PATH_OR_NONE}}` / `{{HASH_OR_NONE}}`
+- Human-facing export / SHA-256: `{{PATH_OR_NONE}}` / `{{HASH_OR_NONE}}`
+- Accepted source data / companion JSON: `{{PATH_OR_NONE}}` / `{{PATH_OR_NONE}}`
+- Browser, accessibility, offline, and print checks: {{RESULTS_OR_NOT_RUN}}
+
 ## Verification performed
 
 ### Mechanical
@@ -103,6 +111,7 @@ created_at: "{{ISO_8601}}"
 - Required resume prechecks: {{CHECKS_OR_NONE}}
 - Detailed status: `$chatgpt-pro-workforce tell me more {{RUN_ID}}`
 - Dashboard: `$chatgpt-pro-workforce dashboard {{RUN_ID}}`
+- Export research explorer: `$chatgpt-pro-workforce export explorer {{RUN_ID}}`
 - Change allocation: `$chatgpt-pro-workforce change allocation {{RUN_ID}}`
 - Change concurrency: `$chatgpt-pro-workforce change concurrency {{RUN_ID}}`
 

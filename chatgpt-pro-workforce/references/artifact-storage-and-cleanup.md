@@ -74,6 +74,12 @@ Use only the directories needed by the run:
 - `accepted/` contains only hash-bound accepted deliverables.
 - `manifests/` contains inventories, validation evidence, and cleanup plans.
 
+When a completed-research explorer is enabled, build its first verified HTML
+inside `accepted/`. A copy placed in an exact configured Downloads or other
+human-facing output location is an accepted export, not temporary browser
+staging. Hash both copies and never make the broad destination directory a
+cleanup boundary. Read [completed research explorer](research-explorer.md).
+
 Do not create an empty tree during preflight. Create the run directory only
 after the root, topic, and run are approved and the task will recover files.
 
