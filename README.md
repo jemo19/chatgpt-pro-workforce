@@ -4,43 +4,105 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Codex skill](https://img.shields.io/badge/Codex-skill-111827)](chatgpt-pro-workforce/SKILL.md)
 
-An evidence-first Codex skill for coordinating ordinary logged-in ChatGPT Pro
-browser conversations as bounded external workers. Codex retains responsibility
-for scope, permissions, prompts, browser and desktop targeting, artifact
-recovery, independent verification, integration, lineage, and final acceptance.
+This is a Codex skill that uses regular logged-in ChatGPT Pro browser chats as
+research and review workers.
+
+Codex stays in charge. It decides what each worker is doing, watches the browser,
+saves the results, checks the work, and puts everything back together. ChatGPT
+Pro handles the research, analysis, reviews, calculations, and document work you
+assign to it.
+
+I built it for jobs that are too large for one long chat but still need someone
+keeping track of the details.
 
 > [!IMPORTANT]
-> This is an unofficial community project. It is not affiliated with, endorsed
-> by, or maintained by OpenAI. ChatGPT, ChatGPT Pro, and Codex are referenced
-> only to describe compatibility and the services the skill coordinates.
+> This is an unofficial community project. It is not made, endorsed, or
+> maintained by OpenAI.
 
-## Why use it?
+## What it does
 
-- Turn broad research, review, calculation, synthesis, and artifact work into
-  bounded lanes with stable ownership.
-- Walk through setup one small question at a time when invoked without a task.
-- Verify browser and computer-control readiness before every invocation and
-  recheck affected controls when a workflow stalls.
-- Preserve raw worker returns, hashes, lane state, decisions, and independent
-  acceptance evidence.
-- Pause safely at usage limits and resume without blindly duplicating worker
-  submissions.
-- Track exact progress in chat or through an optional sanitized, loopback-only
-  dashboard with detailed status, help, and copyable control intents.
-- Recommend an Obsidian vault from bounded metadata evidence, then ask before
-  writing research notes or topic folders.
+- Walks you through setup if you invoke the skill by itself.
+- Shows every available choice instead of expecting you to know its internal
+  modes or settings.
+- Splits a larger job into separate worker chats with clear ownership.
+- Checks Chrome and computer-control support before work starts and again each
+  time you invoke the skill.
+- Rechecks the browser and computer controls if the workflow starts hanging or
+  something stops responding.
+- Saves the original worker output before making repairs or combining results.
+- Tracks files, hashes, sources, decisions, progress, and what still needs your
+  approval.
+- Can pause at usage limits and resume without blindly sending the same prompt
+  twice.
+- Can keep research notes in an Obsidian vault after it finds likely vaults and
+  confirms the location with you.
+- Can use more ChatGPT Pro and less Codex, or the other way around. You can
+  change that setting later.
+- Includes a local status page with progress, worker state, problems, controls,
+  and copy buttons.
 
-![Sanitized workforce status dashboard](docs/images/dashboard-preview.jpg)
+## The status page
+
+The dashboard is local to your computer. It does not send status data to a
+separate service, and the buttons only copy commands back to Codex.
+
+The first screen shows the run, what should happen next, and five separate
+progress measurements. It does not roll everything into a made-up overall
+percentage.
+
+![Workforce dashboard overview](docs/images/dashboard-overview-v1.1.jpg)
+
+The lower part of the page has the full control list. You can copy a command and
+paste it into Codex without having to remember the wording.
+
+![Workforce dashboard controls](docs/images/dashboard-controls-v1.1.jpg)
+
+If the page loses its local connection, it keeps the last good information on
+screen, says that it is reconnecting, and retries. If that does not fix it, use:
+
+```text
+$chatgpt-pro-workforce dashboard troubleshoot RUN_ID
+```
+
+That checks the exact server, run page, run ID, and status file. It can restart
+one verified skill-owned dashboard process, but it will not kill an unknown
+process that happens to be using the same port.
+
+More details: [Dashboard and controls](docs/dashboard-and-controls.md)
+
+## What you need
+
+At minimum:
+
+- Codex with user skills enabled;
+- a ChatGPT Pro account already signed in through Chrome;
+- the Codex Chrome control extension working with that browser.
+
+For work outside the browser, the skill checks the computer-control options
+available on the current operating system.
+
+| Platform | What the skill looks for |
+|---|---|
+| Linux | Chrome control, Linux Computer Use MCP, Chrome DevTools MCP, and the Playwright extension. AT-SPI and explicit window/focus checks are used before input. |
+| macOS | Browser control first, then Accessibility, Screen Recording, Input Monitoring, and Automation permissions when the task actually needs them. |
+| Windows | Browser control first, then UI Automation and verified window/focus handling. It does not bypass UAC or the secure desktop. |
+
+Missing support does not automatically end the job. The skill can offer setup,
+use a browser-only route, hand a desktop step to you, or revise the workload.
+It asks before installing tools, changing permissions, or doing anything with a
+larger security impact.
+
+See [Platform support](docs/platform-support.md) for the longer version.
 
 ## Install
 
-Ask Codex to use its built-in skill installer:
+The recommended way is to ask Codex to use its built-in skill installer:
 
 ```text
 $skill-installer Install the skill from https://github.com/jemo19/chatgpt-pro-workforce/tree/main/chatgpt-pro-workforce
 ```
 
-Or run the installed helper directly:
+You can also run the installed helper directly:
 
 ```bash
 python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
@@ -48,162 +110,174 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
   --path chatgpt-pro-workforce
 ```
 
-Start a new Codex session after installation so skill discovery refreshes.
-See [Installation](docs/installation.md) for manual installation, updates,
-validation, and safe removal.
+Start a new Codex session after installing it so the skill list refreshes.
 
-## Start with the guided kickoff
+For manual installation, updates, validation, and removal, see
+[Installation](docs/installation.md).
 
-Invoke the skill without a task:
+## First run
+
+Start with just the skill name:
 
 ```text
 $chatgpt-pro-workforce
 ```
 
-It will run a read-only readiness gate, then guide you through the outcome,
-mode, Pro/Codex allocation, lane plan, concurrency, storage, Obsidian notes,
-dashboard policy, reporting cadence, permissions, and acceptance criteria. It
-does not launch a worker during intake.
+It will ask one question at a time and show the available choices as a lettered
+list. The setup covers:
 
-For a concrete request:
+- what you are trying to get done;
+- research, review, calculation, synthesis, or artifact mode;
+- how much work ChatGPT Pro should do versus Codex;
+- whether it may suggest or add newly discovered research topics;
+- how many Pro workers may run at once;
+- how often you want updates;
+- where downloaded files should go and when they may be cleaned up;
+- whether you want Obsidian notes and where they should live;
+- whether the local dashboard should be off, on demand, or enabled;
+- browser, desktop-control, and permission readiness;
+- what counts as finished.
 
-```text
-$chatgpt-pro-workforce Use two Pro workers in Balanced mode to research the accessibility of this product category. Ask before adding newly discovered topics, keep source-backed Obsidian notes, and enable the on-demand status dashboard.
-```
+It shows you the final setup before launching workers.
 
-The skill supports research, visual review, code review, document review,
-data/calculation, adversarial review, synthesis, and artifact production.
-
-## Safe test run and monitoring
-
-Use synthetic or public information for the first run:
-
-```text
-Use $chatgpt-pro-workforce for a disposable test run. Do not use private data or consequential actions. Run the full readiness preflight, guide me through a harmless two-lane research task, enable the on-demand dashboard, show the run ID, and stop at the final acceptance gate so I can inspect the evidence.
-```
-
-Useful read-only checks during the run:
+For a direct request, you can include the choices up front:
 
 ```text
-$chatgpt-pro-workforce status RUN_ID
-$chatgpt-pro-workforce tell me more RUN_ID
+$chatgpt-pro-workforce Research local-first AI note tools with two ChatGPT Pro workers. Use Pro-heavy mode, ask me before adding new topics, save source-backed notes in Obsidian, and turn on the dashboard.
 ```
 
-You can also ask Codex:
+## Pro versus Codex usage
 
-```text
-Monitor RUN_ID during this active session. Report material state changes, verify browser and computer-control health if progress stalls, and stop for my decision before any new permission, installation, destructive action, or broader target.
-```
+You can change this at any time. Changes apply to new work so an active worker
+does not suddenly change owners halfway through a task.
 
-Monitoring is active-session work, not a permanent background service. The
-dashboard polls sanitized local state while it is running; it does not keep the
-orchestrator alive after the session ends. See
-[Test-run monitoring](docs/test-run-monitoring.md) for the evidence and error
-signals to collect.
+| Setting | How the work is split | Codex usage |
+|---|---|---|
+| Pro-heavy | ChatGPT Pro does most research, drafting, analysis, and artifact work. Codex orchestrates and checks it. | Lowest |
+| Balanced | ChatGPT Pro and Codex share the substantive work. | Moderate |
+| Codex-heavy | Codex does most of the work and uses Pro for specialist or independent review. | High |
+| Local only | No ChatGPT Pro workers are launched. | Codex only |
 
-## Controls
+## Worker limits
 
-These are conversational intents, not native CLI subcommands:
+Two simultaneous ChatGPT Pro workers is the safe default.
 
-| Intent | Purpose |
+Going over two is much more likely to cause throttling, interrupted chats, closed
+tabs, disconnected sessions, or work that cannot be recovered. The skill warns
+you and requires an explicit limit for that run before it launches more than
+two. It never closes an existing chat just to make room for another one.
+
+## Useful controls
+
+These are instructions you paste into Codex. They are not shell commands.
+
+| What you want | Command |
 |---|---|
-| `$chatgpt-pro-workforce status RUN_ID` | Compact evidence-bound progress |
-| `$chatgpt-pro-workforce tell me more RUN_ID` | Detailed lanes, controls, artifacts, gates, and next action |
-| `$chatgpt-pro-workforce pause RUN_ID` | Stop new submissions and checkpoint safely |
-| `$chatgpt-pro-workforce resume RUN_ID` | Reconcile current state before continuing |
-| `$chatgpt-pro-workforce change allocation RUN_ID` | Change future Pro/Codex work ownership |
-| `$chatgpt-pro-workforce change concurrency RUN_ID 1` | Change the finite future-launch ceiling |
-| `$chatgpt-pro-workforce dashboard troubleshoot RUN_ID` | Verify the exact local page and run one bounded safe repair if needed |
-| `$chatgpt-pro-workforce help` | Show modes, controls, safety boundaries, and examples |
-| `$chatgpt-pro-workforce uninstall` | Begin exact-target, backup-first removal |
+| Start the walkthrough | `$chatgpt-pro-workforce` |
+| Quick status | `$chatgpt-pro-workforce status RUN_ID` |
+| Full status and evidence | `$chatgpt-pro-workforce tell me more RUN_ID` |
+| Pause new work and save the current state | `$chatgpt-pro-workforce pause RUN_ID` |
+| Check the saved state and continue | `$chatgpt-pro-workforce resume RUN_ID` |
+| Change future Pro/Codex work | `$chatgpt-pro-workforce change allocation RUN_ID` |
+| Change the future worker limit | `$chatgpt-pro-workforce change concurrency RUN_ID` |
+| Open or refresh the dashboard | `$chatgpt-pro-workforce dashboard RUN_ID` |
+| Diagnose a dashboard that will not load | `$chatgpt-pro-workforce dashboard troubleshoot RUN_ID` |
+| Show all controls and examples | `$chatgpt-pro-workforce help` |
+| Start the guided removal process | `$chatgpt-pro-workforce uninstall` |
 
-Two simultaneous ChatGPT Pro workers is the safe default. More than two is
-high risk: it is likely to increase throttling and can leave chats interrupted,
-closed, disconnected, or inaccessible before outputs are recovered. Unsaved or
-unverified work may be lost. Higher limits require explicit, current-run,
-exact-limit acknowledgment and never cause existing chats to be closed
-automatically.
+## Pause, limits, and recovery
 
-## How responsibility is divided
+The skill keeps a run ID, worker IDs, prompt hashes, browser conversation
+identity, file hashes, and the next safe action in local state. On resume it
+checks what actually happened before submitting anything again.
 
-ChatGPT Pro workers can research, review, calculate, critique, synthesize, and
-produce bounded artifacts. They remain untrusted capabilities. Codex owns:
+It treats these situations differently:
 
-- scope, permission boundaries, prompts, and lane ownership;
-- browser/tab/window/focus targeting and attachment checks;
-- patient monitoring and non-destructive recovery;
-- immutable raw returns, inventories, and SHA-256 lineage;
-- separate mechanical and semantic acceptance gates;
-- independent verification, bounded repair, integration, and durable handoff.
+- work that is healthy but slow;
+- a temporary ChatGPT or browser error;
+- a stalled worker;
+- disconnected browser control;
+- an incomplete final response;
+- a response that returned only part of the expected files.
 
-Read [Operating model](docs/operating-model.md) for the full lane and
-conversation model, and [Security and privacy](docs/security-and-privacy.md)
-for the trust boundaries.
+It does not use reloads, duplicate prompts, “answer now,” or random clicking as
+normal monitoring tools.
 
-## Platform support
+The dashboard is not a background worker. Codex still has to be running to
+orchestrate and report new state. See
+[Test-run monitoring](docs/test-run-monitoring.md).
 
-The central requirement is an authorized, signed-in browser route that can
-identify the intended ChatGPT conversation and composer. Desktop control is
-used only for actions browser semantics cannot complete.
+## Downloads and Obsidian notes
 
-| Platform | Documented control stack |
-|---|---|
-| Linux | Signed-in Chrome control, Linux Computer Use MCP, Chrome DevTools MCP, and Playwright-extension MCP are recorded separately; AT-SPI, explicit window targeting, verified-focus input, and screenshots are bounded fallbacks. |
-| macOS | Browser control first; Accessibility, Screen Recording, Input Monitoring, and Automation permissions are action-scoped prerequisites when desktop interaction is required. |
-| Windows | Browser control first; UI Automation and explicit window/focus checks precede input, while UAC secure-desktop boundaries are preserved. |
+During first setup, the skill asks whether worker downloads should use a
+separate folder and whether old run-owned files may be cleaned up later. It does
+not perform broad cleanup in Downloads, and it checks the exact path and hash
+again before deleting an approved file.
 
-Every environment is preflighted rather than assumed. Missing capabilities can
-degrade to a browser-only or manual route. The skill never weakens approvals,
-sandboxing, browser security, or operating-system security to make automation
-easier. See [Platform support](docs/platform-support.md).
+For Obsidian, it checks configured and likely vault locations without reading
+your note contents. It suggests the best match and asks you to confirm it. Each
+research topic can get its own folder with the run state, sources, findings, and
+links to native artifacts. Large files are indexed instead of copied into the
+vault again.
 
-## Dashboard
+## Who is responsible for what
 
-The optional local dashboard is a read-only projection of sanitized durable
-state. It provides exact progress ratios, detailed lane state, readiness,
-artifacts, decisions, warnings, full help, and copy buttons for chat intents.
-It binds only to loopback, serves a dedicated root, rejects unsafe file state,
-and exposes no execution or uninstall endpoint. Chrome automation/debugging
-bars are treated as variable browser chrome; screenshot work remeasures the
-content viewport rather than assuming the outer window dimensions.
+ChatGPT Pro workers are useful, but their answers are not automatically trusted.
 
-See [Dashboard and controls](docs/dashboard-and-controls.md).
+Codex is still responsible for:
 
-## Repository layout
+- the scope and permission boundaries;
+- worker prompts and ownership;
+- the correct browser tab, window, and file attachment;
+- saving the original returned files;
+- checking files, hashes, links, and expected output;
+- checking whether the actual content is correct;
+- resolving disagreements between workers;
+- combining the accepted work;
+- the final answer and handoff.
+
+See [Operating model](docs/operating-model.md) and
+[Security and privacy](docs/security-and-privacy.md).
+
+## Test it without risking real work
+
+For the first run, use public or disposable information:
 
 ```text
-chatgpt-pro-workforce/   Installable Codex skill
-docs/                    Public user and architecture guides
-tests/                   Dependency-free structural and behavior checks
-scripts/                 Public-tree and deterministic release helpers
-.github/                 CI, issue forms, and pull-request guidance
+Use $chatgpt-pro-workforce for a disposable test. Walk me through a harmless two-worker research task, turn on the dashboard, show me the run ID, and stop at the final review so I can inspect everything before accepting it.
 ```
 
-The runtime skill intentionally contains no README or build reports. Packaging,
-community, and test material stays outside the installable directory.
+The repository checks the skill structure, links, setup flow, pause/resume
+logic, duplicate suppression, unsafe ZIP handling, dashboard security,
+dashboard recovery, Obsidian discovery, and the documented platform routes.
 
-## Validate locally
-
-Python 3.10 or newer is required for the repository checks. Runtime helpers use
-only the Python standard library.
+Run the checks with:
 
 ```bash
 make check
 make package
 ```
 
-The accepted initial release covers 40 installable files, 98 deterministic
-behavior cases, 35 forward scenarios, 20 dashboard integration checks, and 15
-Obsidian locator checks. Live browser and desktop capabilities are always
-reported separately from simulations.
+Python 3.10 or newer is required for repository checks. The runtime helpers use
+the Python standard library and do not download dependencies.
+
+## Repository layout
+
+```text
+chatgpt-pro-workforce/   The installable skill
+docs/                    User guides and design notes
+tests/                   Behavior, forward, dashboard, and locator tests
+scripts/                 Packaging and public-tree checks
+.github/                 GitHub Actions and contribution templates
+```
 
 ## Contributing and support
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing runtime behavior.
-Security issues and potentially sensitive control failures belong in private
-reports; do not paste credentials, browser state, private prompts, or customer
-data into a public issue. See [SECURITY.md](SECURITY.md) and
-[SUPPORT.md](SUPPORT.md).
+
+Do not post credentials, browser state, private prompts, customer information,
+or private research files in a public issue. Use [SECURITY.md](SECURITY.md) for
+security reporting and [SUPPORT.md](SUPPORT.md) for normal help.
 
 ## License
 
