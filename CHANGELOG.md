@@ -5,6 +5,17 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- A mandatory per-submission ChatGPT Pro gate that separately verifies account
+  entitlement, the declared model's selected state, and maximum thinking power
+  reported as `Pro, 5 of 5` in the exact target conversation.
+- Mode re-verification after conversation creation, reuse, resume, rebinding,
+  reload, control recovery, and provider limit or fallback changes.
+- Durable Pro-mode evidence, failure handling, status reporting, and regression
+  coverage. A profile badge, collapsed `Pro` button, `High`, or remembered
+  default no longer counts as maximum-power conversation proof.
+
 ## [1.2.0] - 2026-08-31
 
 ### Added

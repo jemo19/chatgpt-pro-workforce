@@ -331,12 +331,14 @@ def main() -> int:
     kickoff = (ROOT / "assets/kickoff-brief-template.md").read_text()
     handoff = (ROOT / "assets/handoff-template.md").read_text()
     capability = (ROOT / "references/capability-preflight.md").read_text()
+    capability_report_text = (ROOT / "assets/capability-report-template.md").read_text()
     security = (ROOT / "references/security-and-authority.md").read_text()
     storage = (ROOT / "references/artifact-storage-and-cleanup.md").read_text()
     cleanup_plan = (ROOT / "assets/cleanup-plan-template.md").read_text()
     obsidian = (ROOT / "references/obsidian-research-vault.md").read_text()
     obsidian_locator = (ROOT / "scripts/obsidian_locator.py").read_text()
     monitoring = (ROOT / "references/monitoring-and-recovery.md").read_text()
+    failure_text = (ROOT / "references/failure-catalog.md").read_text()
     dashboard = (ROOT / "references/local-status-dashboard.md").read_text()
     dashboard_html = (ROOT / "assets/status-dashboard-template.html").read_text()
     dashboard_script = (ROOT / "scripts/status_dashboard.py").read_text()
@@ -397,6 +399,32 @@ def main() -> int:
         errors.append("SKILL lacks every-invocation readiness gate")
     if "must not create a new conversation, type, submit" not in capability:
         errors.append("invocation gate lacks read-only mutation boundary")
+    pro_gate_text = " ".join("\n".join((skill_text, capability, orchestration, monitoring, failure_text)).split())
+    for term in (
+        "C25",
+        "C26",
+        "ChatGPT Pro account entitlement",
+        "Target conversation Pro model and maximum thinking power",
+        "PRO_MAX_POWER_VERIFIED",
+        "PRO_LOWER_POWER",
+        "Pro, 5 of 5",
+        "PRO_LIMITED_OR_FALLBACK",
+        "account badge",
+        "selected-state postcondition",
+        "immediately before every ChatGPT Pro prompt submission",
+        "There is no degraded or manual bypass",
+    ):
+        if term.lower() not in pro_gate_text.lower():
+            errors.append(f"ChatGPT Pro submission gate missing: {term}")
+    for template_name, template in (
+        ("capability report", capability_report_text),
+        ("lane state", lane_state),
+        ("run state", run_state),
+        ("kickoff", kickoff),
+        ("workforce profile", workforce_profile),
+    ):
+        if "Pro" not in template or (template_name in {"capability report", "lane state", "run state"} and "PRO_MAX_POWER_VERIFIED" not in template):
+            errors.append(f"ChatGPT Pro evidence missing from {template_name}")
     for term in (
         "Freeze new submissions",
         "Recheck the browser chain",
@@ -706,6 +734,7 @@ def main() -> int:
         "allocation profiles and first-pass scope-expansion policies",
         "finite registered-ratio bars and unknown-denominator behavior",
         "pause, usage-limit, resume, freshness, and visible tell-me-more state",
+        "per-submission ChatGPT Pro entitlement and exact-conversation selected-mode gate",
         "cross-platform permission-gated prerequisite setup and launch-readiness gate",
         "Chrome automation-infobar-aware content viewport capture geometry",
         "four independently recorded Linux control layers and macOS/Windows truth boundaries",

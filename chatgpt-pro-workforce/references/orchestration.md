@@ -5,6 +5,7 @@
 - [Conversation selection](#conversation-selection)
 - [Work allocation profiles](#work-allocation-profiles)
 - [Launch-readiness gate](#launch-readiness-gate)
+- [ChatGPT Pro submission gate](#chatgpt-pro-submission-gate)
 - [Lane charter](#lane-charter)
 - [Parallelism rules](#parallelism-rules)
 - [Pro conversation concurrency gate](#pro-conversation-concurrency-gate)
@@ -75,6 +76,25 @@ selected route before submission.
 Do not add desktop control merely because it is available. If a missing
 optional capability affects convenience only, record the limitation and use
 the least-powerful ready route.
+
+## ChatGPT Pro submission gate
+
+Passing general launch readiness does not prove that the exact conversation is
+using Pro. Immediately before every ChatGPT Pro prompt submission, apply the
+submission gate in [capability preflight](capability-preflight.md): verify the
+account's Pro entitlement and independently verify the target conversation's
+declared model selection and maximum thinking power through semantic UI state.
+
+The account/profile Pro label is entitlement evidence only. A collapsed `Pro`
+button does not prove maximum power. Do not submit based on a remembered
+default, prior lane, `High`, or the availability of a Pro choice. Require the
+declared model's selected state and exact `Pro, 5 of 5` thinking-power evidence.
+If either is wrong, use only an already-authorized semantic browser action to
+set it, close and reopen the selector, and re-read the postcondition. If the
+state is unavailable, ambiguous, reduced by a limit or fallback, or unknown
+after the action, suppress submission and request the smallest user action
+needed. Re-run the gate after that action, on every resume, and whenever the
+conversation, model, or thinking-power state may have changed.
 
 ## Lane charter
 

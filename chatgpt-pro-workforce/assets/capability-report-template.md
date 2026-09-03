@@ -75,6 +75,17 @@ Allowed states only: `AVAILABLE_VERIFIED`, `AVAILABLE_UNTESTED`,
 | C22 | Independent focus verification | `{{STATE}}` | {{PROBE}} | {{EVIDENCE}} |
 | C23 | Manual native-dialog handoff | `{{STATE}}` | {{PROBE}} | {{EVIDENCE}} |
 | C24 | Hashing and archive validation | `{{STATE}}` | {{PROBE}} | {{EVIDENCE}} |
+| C25 | ChatGPT Pro account entitlement | `{{STATE}}` | {{PROBE}} | {{SAFE_VISIBLE_ENTITLEMENT_EVIDENCE}} |
+| C26 | Target conversation Pro model and maximum thinking power | `{{STATE}}` | {{PROBE}} | {{DECLARED_MODEL_SELECTED_AND_PRO_5_OF_5_EVIDENCE}} |
+
+## ChatGPT Pro submission evidence
+
+Repeat this record for each submission attempt. Account-level evidence does not
+replace target-conversation mode evidence.
+
+| Lane | Target conversation identity | Account entitlement | Declared model / selected state | Thinking-power label | Reopen postcondition | Observation | Verified at | Submission allowed |
+|---|---|---|---|---|---|---|---|---|
+| `{{LANE_ID}}` | {{SAFE_IDENTITY}} | `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE}}` | {{MODEL_AND_SELECTED_STATE_OR_UNKNOWN}} | {{PRO_5_OF_5_OR_OBSERVED_VALUE_OR_UNKNOWN}} | {{CLOSED_REOPENED_AND_REREAD_OR_UNKNOWN}} | `{{PRO_MAX_POWER_VERIFIED|PRO_LOWER_POWER|PRO_MODEL_NOT_SELECTED|PRO_UNAVAILABLE|PRO_AMBIGUOUS|PRO_LIMITED_OR_FALLBACK|UNKNOWN}}` | {{ISO_8601}} | `{{yes|no}}` |
 
 ## Platform support stack
 
@@ -160,6 +171,8 @@ Allowed action outcomes only: `NOT_ATTEMPTED`, `VERIFIED_SUCCEEDED`,
 - every skill invocation performs a proportional read-only gate;
 - first invocation or missing/untrusted baseline;
 - browser or MCP reconnect;
+- new, reused, resumed, rebound, or reloaded ChatGPT conversation;
+- model/mode control change or provider limit/fallback notice;
 - desktop-session/display-protocol change;
 - adapter update or configuration change;
 - repeated target-selection, upload, download, or screenshot failure;

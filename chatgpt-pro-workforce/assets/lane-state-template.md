@@ -26,6 +26,18 @@ updated_at: "{{ISO_8601}}"
 - Prompt SHA-256: `{{HASH}}`
 - Submitted at: {{ISO_8601_OR_NOT_SUBMITTED}}
 
+## ChatGPT Pro submission gate
+
+- Account entitlement state/evidence: `{{CAPABILITY_STATE}}` / {{SAFE_VISIBLE_EVIDENCE}}
+- Target conversation model/power state: `{{CAPABILITY_STATE}}`
+- Declared model / selected-state proof: {{MODEL_AND_CURRENT_SELECTED_CHECKED_STATE_OR_UNKNOWN}}
+- Thinking-power control / observed label: {{CONTROL_IDENTITY_AND_PRO_5_OF_5_OR_OBSERVED_VALUE}}
+- Selector close/reopen postcondition: {{REREAD_RESULT_OR_UNKNOWN}}
+- Pro observation: `{{PRO_MAX_POWER_VERIFIED|PRO_LOWER_POWER|PRO_MODEL_NOT_SELECTED|PRO_UNAVAILABLE|PRO_AMBIGUOUS|PRO_LIMITED_OR_FALLBACK|UNKNOWN}}`
+- Verified at / target conversation: {{ISO_8601_OR_NEVER}} / {{SAFE_IDENTITY_OR_UNKNOWN}}
+- Gate result: `{{ALLOW_SUBMISSION|BLOCK_SUBMISSION|REVERIFY_REQUIRED}}`
+- Recheck trigger: `{{NEW|REUSE|RESUME|REBIND|RELOAD|MODE_CHANGE|LIMIT_OR_FALLBACK|CONTROL_FAULT|PRE_SUBMISSION}}`
+
 ## Inputs
 
 - {{INPUT_WITH_HASH_OR_VERSION}}

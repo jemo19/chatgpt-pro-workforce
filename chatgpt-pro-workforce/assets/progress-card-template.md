@@ -17,6 +17,7 @@ Acceptance  {{BAR_OR_ACTIVE}}  {{N}}/{{DENOMINATOR_OR_DASH}}  {{SHORT_BASIS}}
 Now: {{ACTIVE_WAITING_OR_PAUSED_SUMMARY}}
 Concurrency: max {{FINITE_INTEGER_DEFAULT_2}} · active/unknown {{NONNEGATIVE_INTEGER_OR_UNKNOWN}} {{GATE_OR_WARNING_WHEN_RELEVANT}}
 Prerequisite: {{READY_OR_BLOCKING_SETUP_MANUAL_DECISION}}
+Pro gate: {{PRO_MAX_POWER_VERIFIED_AT_OR_BLOCKED_REVERIFY_REQUIRED_OR_NOT_APPLICABLE}}
 Next: {{NEXT_SAFE_ACTION_OR_USER_DECISION}}
 {{DENOMINATOR_CHANGE_OR_NONE}}
 
@@ -55,6 +56,9 @@ or remembered URL. `More:` remains visible in either case.
 - Capability route: `{{ROUTE}}`
 - Invocation preflight: `{{ID}}` / `{{LEVEL}}` / `{{TRIGGER}}` / `{{PASS|DEGRADED|BLOCKED}}`; delta {{DELTA_OR_NONE_OBSERVED}}
 - Prerequisite readiness: `{{SETUP_STATE}}` — {{SETUP_ID_PLAN_OR_MANUAL_ROUTE}}
+- ChatGPT Pro gate: entitlement `{{CAPABILITY_STATE}}`; target conversation
+  `{{PRO_MAX_POWER_VERIFIED|PRO_LOWER_POWER|PRO_MODEL_NOT_SELECTED|PRO_UNAVAILABLE|PRO_AMBIGUOUS|PRO_LIMITED_OR_FALLBACK|UNKNOWN|NOT_APPLICABLE}}`;
+  verified {{ISO_8601_OR_NEVER}}; submission `{{ALLOWED|BLOCKED|REVERIFY_REQUIRED|NOT_APPLICABLE}}`
 - Screenshot geometry/Chrome-infobar limitation: {{DETAIL_OR_NOT_APPLICABLE}}
 - Scope expansion: `{{POLICY}}`; first pass `{{DISCOVERY_STATE}}`
 - Reporting cadence: `{{VERBOSE|STANDARD|QUIET}}`
