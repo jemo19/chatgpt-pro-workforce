@@ -97,6 +97,24 @@ def launch_concurrency_decision(
     return "REQUIRE_CURRENT_RUN_EXACT_LIMIT_ACKNOWLEDGEMENT"
 
 
+def pro_submission_decision(
+    *,
+    entitlement: str,
+    observation: str,
+    selected_postcondition: bool,
+) -> str:
+    """Model the fail-closed gate immediately before a Pro worker prompt."""
+    if entitlement != "AVAILABLE_VERIFIED":
+        return "BLOCK_ENTITLEMENT"
+    if observation == "PRO_MAX_POWER_VERIFIED" and selected_postcondition:
+        return "ALLOW_SUBMISSION"
+    if observation in {"PRO_MODEL_NOT_SELECTED", "PRO_LOWER_POWER"}:
+        return "SELECT_AND_REVERIFY"
+    if observation == "PRO_LIMITED_OR_FALLBACK":
+        return "PAUSE_LIMIT_OR_FALLBACK"
+    return "BLOCK_AND_ASK"
+
+
 def invocation_gate(profile: InvocationProfile, *, drift: bool = False) -> InvocationProfile:
     updated = deepcopy(profile)
     updated.invocation_gates += 1
@@ -411,6 +429,30 @@ def main() -> int:
         "$chatgpt-pro-workforce change concurrency {RUN_ID}",
     )
     record("PC96", "high-concurrency risk is visible in controls and durable workflow", "all risk, acknowledgement, recovery, and copy-control terms", ",".join(term for term in concurrency_terms if term in concurrency_contract), all(term in concurrency_contract for term in concurrency_terms))
+
+    pro_gate_contract = "\n".join((capability_text, orchestration_text, monitoring_text, failure_text, capability_report_text))
+    pro_gate_terms = (
+        "ChatGPT Pro account entitlement",
+        "Target conversation Pro model and maximum thinking power",
+        "PRO_MAX_POWER_VERIFIED",
+        "Pro, 5 of 5",
+        "account badge",
+        "immediately before each prompt",
+        "selected-state postcondition",
+    )
+    record("PC99", "Pro launch gate is durable and submission-bound", "entitlement and exact-conversation mode proof", ",".join(term for term in pro_gate_terms if term.lower() in pro_gate_contract.lower()), all(term.lower() in pro_gate_contract.lower() for term in pro_gate_terms))
+    allowed = pro_submission_decision(entitlement="AVAILABLE_VERIFIED", observation="PRO_MAX_POWER_VERIFIED", selected_postcondition=True)
+    record("PC100", "verified entitlement and selected Pro mode", "ALLOW_SUBMISSION", allowed, allowed == "ALLOW_SUBMISSION")
+    badge_only = pro_submission_decision(entitlement="AVAILABLE_VERIFIED", observation="UNKNOWN", selected_postcondition=False)
+    record("PC101", "account Pro badge alone", "BLOCK_AND_ASK", badge_only, badge_only == "BLOCK_AND_ASK")
+    not_selected = pro_submission_decision(entitlement="AVAILABLE_VERIFIED", observation="PRO_MODEL_NOT_SELECTED", selected_postcondition=False)
+    record("PC102", "target chat not set to Pro", "SELECT_AND_REVERIFY", not_selected, not_selected == "SELECT_AND_REVERIFY")
+    click_without_postcondition = pro_submission_decision(entitlement="AVAILABLE_VERIFIED", observation="PRO_MAX_POWER_VERIFIED", selected_postcondition=False)
+    record("PC103", "mode click without selected-state proof", "BLOCK_AND_ASK", click_without_postcondition, click_without_postcondition == "BLOCK_AND_ASK")
+    fallback = pro_submission_decision(entitlement="AVAILABLE_VERIFIED", observation="PRO_LIMITED_OR_FALLBACK", selected_postcondition=False)
+    record("PC104", "provider fallback invalidates Pro proof", "PAUSE_LIMIT_OR_FALLBACK", fallback, fallback == "PAUSE_LIMIT_OR_FALLBACK")
+    lower_power = pro_submission_decision(entitlement="AVAILABLE_VERIFIED", observation="PRO_LOWER_POWER", selected_postcondition=False)
+    record("PC105", "High is lower than maximum Pro power", "SELECT_AND_REVERIFY", lower_power, lower_power == "SELECT_AND_REVERIFY" and "`High` is always" in capability_text)
 
     record("PC23", "verbose reporting cadence", "emit unchanged observation", str(should_emit("VERBOSE", False, False, 0)), should_emit("VERBOSE", False, False, 0))
     record("PC24", "standard reporting cadence", "emit after two unchanged observations", str(should_emit("STANDARD", False, False, 2)), should_emit("STANDARD", False, False, 2) and not should_emit("STANDARD", False, False, 1))

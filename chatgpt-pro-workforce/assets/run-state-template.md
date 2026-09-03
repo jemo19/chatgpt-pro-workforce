@@ -47,6 +47,11 @@ updated_at: "{{ISO_8601}}"
 - Previous / last verified route: `{{ROUTE_OR_UNKNOWN}}` / `{{ROUTE_OR_UNKNOWN}}`
 - Capability delta: {{DELTA_OR_NONE_OBSERVED}}
 - Current-session evidence path: `{{PATH}}`
+- Pro account entitlement: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE}}`
+- Target conversation Pro model/power: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE|NOT_APPLICABLE}}`
+- Latest Pro observation / verified at: `{{PRO_MAX_POWER_VERIFIED|PRO_LOWER_POWER|PRO_MODEL_NOT_SELECTED|PRO_UNAVAILABLE|PRO_AMBIGUOUS|PRO_LIMITED_OR_FALLBACK|UNKNOWN|NOT_APPLICABLE}}` / {{ISO_8601_OR_NEVER}}
+- Pro submission gate: `{{OPEN_FOR_VERIFIED_TARGET_ONLY|BLOCKED|REVERIFY_REQUIRED|NOT_APPLICABLE}}`
+- Pro evidence lane/path: `{{LANE_ID_OR_NONE}}` / `{{PATH_OR_NONE}}`
 
 ## Control-fault diagnostic
 

@@ -107,6 +107,12 @@ portable [research explorer page](assets/research-explorer-template.html),
 - Tool availability is capability, not permission.
 - Run the safe readiness gate on every invocation and the full preflight before
   launching or reusing a worker lane.
+- Before every ChatGPT Pro prompt submission, semantically verify in that exact
+  conversation: Pro account entitlement, the declared model's selected state,
+  and maximum thinking power reported as `Pro, 5 of 5`. A profile badge,
+  remembered default, collapsed `Pro` button, available Pro option, or `High`
+  setting is not selected-mode-and-power proof. Reopen and independently verify
+  the selector immediately before send.
 - Do not invent tool, skill, connector, MCP, CLI, tab, or window names.
 - Never install, enable, or reconfigure control software silently. When a
   required capability is missing, use the permission-gated
@@ -149,6 +155,12 @@ portable [research explorer page](assets/research-explorer-template.html),
    - `BLOCKED`
 8. Do not launch a worker until the report identifies an authorized route for
    prompt submission and output recovery.
+9. Before each Pro submission, apply the Pro submission gate in
+   [capability preflight](references/capability-preflight.md). If the target
+   conversation is not unambiguously `PRO_MAX_POWER_VERIFIED`, submit nothing;
+   safely select the declared model, move the thinking-power control to its
+   maximum, and re-verify when already authorized, or ask the user to restore
+   the required state.
 
 For each action, use the first authorized, verified option that can complete it:
 purpose-built connector/API/CLI; semantic built-in browser or Chrome control;
@@ -280,6 +292,10 @@ Read [monitoring and recovery](references/monitoring-and-recovery.md).
   prompt hash with durable state and the visible conversation. Suppress an
   identical active or completed submission; never create a duplicate to test
   whether the UI is responsive.
+- Immediately before typing and again before submitting, verify the target
+  conversation's declared model and exact `Pro, 5 of 5` thinking power, then
+  persist the semantic evidence. Repeat after resume, rebinding, reload,
+  fallback/limit notice, or any possible model/power-state drift.
 - Record submission time, conversation URL, tab/window identity when safe,
   prompt hash, expected markers, and expected artifacts.
 - Monitor non-disruptively at bounded intervals, normally 45-90 seconds during

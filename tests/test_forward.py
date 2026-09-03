@@ -107,6 +107,18 @@ def desktop_outcome(transport_success: bool, postcondition: bool | None) -> str:
     return "OUTCOME_UNKNOWN" if transport_success else "NOT_ATTEMPTED"
 
 
+def pro_gate(entitlement: bool, observation: str, postcondition: bool) -> str:
+    if not entitlement:
+        return "BLOCKED"
+    if observation == "PRO_MAX_POWER_VERIFIED" and postcondition:
+        return "SUBMIT"
+    if observation in {"PRO_MODEL_NOT_SELECTED", "PRO_LOWER_POWER"}:
+        return "SELECT_THEN_REVERIFY"
+    if observation == "PRO_LIMITED_OR_FALLBACK":
+        return "LIMIT_PAUSED"
+    return "BLOCKED"
+
+
 def main() -> int:
     temp_path: Path | None = None
     with tempfile.TemporaryDirectory(prefix="chatgpt-pro-workforce-forward-") as temp_name:
@@ -252,6 +264,29 @@ def main() -> int:
         outcome = desktop_outcome(True, None)
         mixed_vocabulary_absent = "Input reports success but no semantic postcondition appears | `STALLED` or `TERMINAL_INCOMPLETE`" not in text("references/linux-control-options.md")
         record("FT35", "transport success without semantic postcondition", "OUTCOME_UNKNOWN", outcome, outcome == "OUTCOME_UNKNOWN" and mixed_vocabulary_absent)
+
+        pro_contract = has(
+            "references/capability-preflight.md",
+            "ChatGPT Pro submission gate",
+            "account-level UI evidence",
+            "target conversation's visible semantic model/mode control",
+            "Pro, 5 of 5",
+            "There is no degraded or manual bypass",
+        )
+        observed = pro_gate(True, "PRO_MAX_POWER_VERIFIED", True)
+        record("FT36", "fresh conversation proves Pro before submit", "SUBMIT", observed, observed == "SUBMIT" and pro_contract)
+        observed = pro_gate(True, "UNKNOWN", False)
+        record("FT37", "profile Pro badge without conversation proof", "BLOCKED", observed, observed == "BLOCKED" and has("references/failure-catalog.md", "Account shows Pro but target conversation mode is unverified"))
+        observed = pro_gate(True, "PRO_MODEL_NOT_SELECTED", False)
+        record("FT38", "conversation starts in another mode", "SELECT_THEN_REVERIFY", observed, observed == "SELECT_THEN_REVERIFY" and has("references/capability-preflight.md", "close and reopen the selector", "independently re-read it"))
+        observed = pro_gate(True, "PRO_MAX_POWER_VERIFIED", False)
+        record("FT39", "mode action lacks selected-state postcondition", "BLOCKED", observed, observed == "BLOCKED" and has("references/capability-preflight.md", "successful click or slider action without", "selected-state postcondition"))
+        observed = pro_gate(True, "PRO_LIMITED_OR_FALLBACK", False)
+        record("FT40", "provider fallback changes Pro mode", "LIMIT_PAUSED", observed, observed == "LIMIT_PAUSED" and has("references/monitoring-and-recovery.md", "fallback, lower-power, or unverified state as a blocked submission"))
+        resume_gate = has("references/capability-preflight.md", "reopening, reusing, resuming, rebinding, or recovering", "run this gate again")
+        record("FT41", "resume requires fresh Pro proof", "REVERIFY_REQUIRED", "REVERIFY_REQUIRED" if resume_gate else "MISSING", resume_gate)
+        observed = pro_gate(True, "PRO_LOWER_POWER", False)
+        record("FT42", "High does not count as maximum Pro", "SELECT_THEN_REVERIFY", observed, observed == "SELECT_THEN_REVERIFY" and has("references/capability-preflight.md", "`High` is always", "Pro, 5 of 5"))
 
     cleaned = bool(temp_path) and not temp_path.exists()
     failures = [result for result in RESULTS if not result.passed]

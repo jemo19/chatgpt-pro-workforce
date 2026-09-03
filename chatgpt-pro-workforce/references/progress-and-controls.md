@@ -272,6 +272,8 @@ The compact card contains:
 - applicable progress categories with exact ratios;
 - active, waiting, paused, or blocked lanes;
 - any prerequisite decision or manual action currently blocking launch/resume;
+- the current Pro entitlement and target-conversation model/power gate when a Pro lane
+  is planned, including `REVERIFY_REQUIRED` after resume or target changes;
 - the next safe action or user decision;
 - the exact visible `tell me more` invocation;
 - the verified `127.0.0.1` dashboard link when configured and healthy;
@@ -291,6 +293,9 @@ The detailed card adds:
   count, warning/acknowledgment scope, and whether the launch gate is open;
 - required/optional prerequisite readiness, setup ID/state/plan, post-setup
   preflight result, manual alternative, and capture-geometry limitations;
+- each Pro lane's last safe model/power observation, semantic selected-state
+  and `Pro, 5 of 5` evidence, verification time, and whether submission is
+  allowed or blocked;
 - progress denominators and any changes since the prior card;
 - exact resume cursor and next safe action.
 

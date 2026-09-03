@@ -18,6 +18,8 @@ Treat paths as untrusted hints until checked in the current invocation.
 - Profile path: `{{PATH}}`
 - First-use setup completed: `{{yes|no}}`
 - First baseline preflight ID/path: `{{PREFLIGHT_ID}}` / `{{PATH}}`
+- ChatGPT Pro entitlement baseline: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE}}`
+- Per-conversation Pro selection policy: `verify-declared-model-and-Pro-5-of-5-before-every-submission; no-badge-collapsed-button-High-default-or-fallback-inference`
 - First baseline completed at: {{ISO_8601_OR_PENDING}}
 - Last invocation-gate ID/path: `{{PREFLIGHT_ID_OR_NONE}}` / `{{PATH_OR_NONE}}`
 - Last invocation gate at: {{ISO_8601_OR_NEVER}}

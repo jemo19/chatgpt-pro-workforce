@@ -25,6 +25,12 @@ Record before submission:
 - expected artifacts and filenames;
 - current capability route.
 
+Also record the current Pro launch evidence: account entitlement state, target
+conversation identity, declared model and selected-state, exact thinking-power
+label (`Pro, 5 of 5`), verification time, and gate result. The evidence must be
+from the exact conversation being submitted, not only the profile menu or a
+collapsed `Pro` button.
+
 Immediately before submission, also reconcile active or unknown Pro
 conversations and apply the concurrency gate in
 [orchestration and lane design](orchestration.md). The serialized default is
@@ -75,7 +81,10 @@ prompt.
 On resume, re-read durable run/lane/handoff state, re-preflight volatile
 capabilities, re-identify conversations, reconcile returned artifacts and
 unknown outcomes, recompute registered denominators, and suppress duplicate
-prompt hashes before returning to `ACTIVE`.
+prompt hashes before returning to `ACTIVE`. Before any resumed submission,
+re-run the ChatGPT Pro submission gate. Treat a missing, ambiguous, changed, or
+fallback, lower-power, or unverified state as a blocked submission, not as
+permission to continue on a different model or at `High`.
 
 Prerequisite setup is not a worker-monitoring recovery action. Pause new
 submissions and control actions before an approved setup change, persist the
@@ -97,7 +106,8 @@ present while output continues.
    prior postconditions, and any action whose outcome is unknown.
 3. Recheck the browser chain in order: exact controller connection, intended
    tab/conversation identity, semantic page/composer state, screenshot
-   freshness/geometry, upload route, and download route.
+   freshness/geometry, ChatGPT Pro entitlement and target-conversation mode,
+   upload route, and download route.
 4. Recheck desktop layers only when the failed action truly requires them:
    exact adapter exposure, target window identity, accessibility tree,
    independent focus proof, screenshot/portal state, and manual alternative.

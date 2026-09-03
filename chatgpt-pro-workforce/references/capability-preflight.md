@@ -23,10 +23,10 @@ Use exactly these levels:
 
 | Level | When | Required behavior |
 |---|---|---|
-| `INITIAL_BASELINE` | First invocation after install, missing/untrusted workforce profile, or no accepted baseline | Run safe discovery across C01-C24 plus the current-OS records in `platform-control-stacks.md`, persist the report and exact interface names, and do not launch a worker during the baseline. |
+| `INITIAL_BASELINE` | First invocation after install, missing/untrusted workforce profile, or no accepted baseline | Run safe discovery across C01-C26 plus the current-OS records in `platform-control-stacks.md`, persist the report and exact interface names, and do not launch a worker during the baseline. |
 | `INVOCATION_GATE` | Every invocation, including bare kickoff, help, status, pause, and resume | Reconfirm current skill/tool exposure, required browser/controller presence, safely targetable run context when applicable, local validation access, and the last route's volatile prerequisites. It is read-only. |
 | `FAULT_DIAGNOSTIC` | A browser/desktop/control symptom occurs | Freeze new submissions/input, preserve state, probe the affected dependency chain, and follow bounded repair in monitoring and recovery. |
-| `FULL_RECHECK` | Capability/route/configuration/session changes, an approved prerequisite completes, or fault repair changes evidence | Re-run all workload-relevant C01-C24 probes and select the least powerful authorized route from fresh evidence. |
+| `FULL_RECHECK` | Capability/route/configuration/session changes, an approved prerequisite completes, or fault repair changes evidence | Re-run all workload-relevant C01-C26 probes and select the least powerful authorized route from fresh evidence. |
 
 Use only these triggers: `FIRST_INVOCATION`, `EVERY_INVOCATION`, `RESUME`,
 `CONTROL_FAULT`, `CONFIGURATION_CHANGE`, and `POST_SETUP`. Each record contains
@@ -106,6 +106,8 @@ Assess the following capabilities separately:
 | C22 | Independent focus verification | A separate observation can prove the intended window/control has focus immediately before input and confirm the result afterward. |
 | C23 | Manual native-dialog handoff | Current-session user availability for login, native upload/download dialogs, or sensitive prompts is verified, or remains `AVAILABLE_UNTESTED`/`UNKNOWN`. |
 | C24 | Hashing and archive validation | Local tools can hash files, inventory archives without extraction, reject unsafe members, and run required validators. |
+| C25 | ChatGPT Pro account entitlement | The target authenticated session exposes safe visible semantic evidence that the account has Pro. A remembered subscription, worker quality, or prior run is insufficient. |
+| C26 | Target conversation Pro model and maximum thinking power | The exact target conversation exposes semantic proof that the declared model is selected and the thinking-power control reports `Pro, 5 of 5`. Account entitlement or a collapsed `Pro` label alone is insufficient. |
 
 ## 4. Discovery rules
 
@@ -155,7 +157,9 @@ preflight; do not promote capability state from setup-command success alone.
 ### 4.4 Map readiness to the workload
 
 For every planned action, mark each relevant capability `required`, `optional`,
-or `not needed`. A Pro lane normally requires authenticated ChatGPT access,
+or `not needed`. A Pro lane requires authenticated ChatGPT access, verified Pro
+account entitlement, verified declared-model selection and maximum `Pro, 5 of
+5` thinking power in the exact target conversation,
 an exact submission route, and an output-recovery route. Upload, native desktop,
 or visual-capture layers are required only when the lane contract needs them.
 Do not force arbitrary desktop control into a browser-only workload.
@@ -180,6 +184,10 @@ Every `INVOCATION_GATE` must, at minimum:
 6. select `PASS`, `DEGRADED`, or `BLOCKED` for the invocation and preserve the
    next safe route.
 
+The invocation gate may confirm that C25 and C26 can be checked, but it must not
+change a model/mode selector during a read-only `status` or `help` request. The
+submission-bound Pro gate below owns the final current-state proof.
+
 On Linux, step 1 separately re-checks exposure of the four recognized support
 families. On macOS and Windows, it separately re-checks the current built-in or
 signed-in browser route plus the exact desktop/accessibility, window/focus,
@@ -202,6 +210,48 @@ Preferred browser probe:
    fresh conversation and record the safe URL/identifier, time, response, and
    whether targeting was semantic. Honor any controller action-time
    confirmation policy.
+
+### 5.1 ChatGPT Pro submission gate
+
+Apply this gate to every ChatGPT Pro lane immediately before each prompt is
+submitted. Run it after creating, reopening, reusing, resuming, rebinding, or
+recovering a conversation, and again after a page reload, model-control change,
+provider fallback/limit notice, or any evidence that the selected mode drifted.
+
+1. Identify the exact target conversation and its composer semantically.
+2. Read safe account-level UI evidence for C25. A profile or plan label may
+   prove entitlement, but never proves the target conversation's mode.
+3. Inspect the target conversation's visible semantic model/mode control. Use
+   its accessible name and selected, current, checked, or pressed state. Discover
+   the current labels; do not depend on a brittle selector or fixed coordinates.
+   Verify all three independent facts: the account is entitled to Pro, the
+   declared model is selected, and the thinking-power control reports exactly
+   `Pro, 5 of 5`.
+4. Classify the observation as exactly one of `PRO_MAX_POWER_VERIFIED`,
+   `PRO_LOWER_POWER`, `PRO_MODEL_NOT_SELECTED`, `PRO_UNAVAILABLE`,
+   `PRO_AMBIGUOUS`, `PRO_LIMITED_OR_FALLBACK`, or `UNKNOWN`. `High` is always
+   `PRO_LOWER_POWER`; a collapsed button reading only `Pro` is ambiguous.
+5. If Pro is available but the declared model or maximum power is not selected
+   and browser interaction is already authorized, select the model semantically,
+   move the thinking-power control to its maximum, close and reopen the selector,
+   then independently re-read it. A successful click or slider action without
+   the checked model and exact `Pro, 5 of 5` postcondition is `UNKNOWN`, not
+   success. This reopened reading is the required selected-state postcondition.
+6. Allow submission only when C25 and C26 are both `AVAILABLE_VERIFIED` and the
+   final observation is `PRO_MAX_POWER_VERIFIED`. Persist the evidence before
+   typing and repeat the selector verification immediately before submitting
+   the prompt.
+
+Never infer active maximum-power Pro from the account badge, a prior
+conversation, remembered defaults, URL shape, prompt wording, response quality,
+the collapsed `Pro` button, or the mere presence of a Pro option. Do not silently
+accept `High`, an automatic or reduced model, a provider fallback, or an
+ambiguous localized control as maximum-power Pro. If entitlement, selected
+model, or exact `Pro, 5 of 5` power cannot be proved, freeze that lane before
+input, report the minimal observed state, and ask the user to select or restore
+Pro. After manual action, re-identify the target and run this gate again. There
+is no degraded or manual bypass that may be labeled a maximum-power ChatGPT Pro
+submission.
 
 For multiple-conversation capability, prefer distinct disposable tab handles or
 documented stable identities. Do not open unrelated user tabs merely to prove

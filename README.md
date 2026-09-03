@@ -30,6 +30,9 @@ keeping track of the details.
   approval.
 - Can pause at usage limits and resume without blindly sending the same prompt
   twice.
+- Checks that the account has Pro, the intended model is selected, and thinking
+  power reads `Pro, 5 of 5` before every worker prompt. An account badge, a
+  collapsed `Pro` button, or `High` does not pass that check.
 - Can keep research notes in an Obsidian vault after it finds likely vaults and
   confirms the location with you.
 - Can use more ChatGPT Pro and less Codex, or the other way around. You can
@@ -99,6 +102,13 @@ Missing support does not automatically end the job. The skill can offer setup,
 use a browser-only route, hand a desktop step to you, or revise the workload.
 It asks before installing tools, changing permissions, or doing anything with a
 larger security impact.
+
+Before a Pro worker prompt is sent, the skill opens and reads the model and
+thinking-power controls on that exact conversation. If needed, it can select
+the intended model and maximum power through an already-authorized semantic
+browser action, close and reopen the selector, and verify `Pro, 5 of 5`. If the
+UI is ambiguous, Pro is unavailable, or ChatGPT has fallen back because of a
+limit, the prompt is not sent and the skill tells you what needs attention.
 
 See [Platform support](docs/platform-support.md) for the longer version.
 
