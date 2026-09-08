@@ -29,9 +29,11 @@ It does not make a provisional page that looks final.
 
 ## Where the file goes
 
-The first verified copy stays in that run's `accepted` folder. If setup points
-at a final Downloads folder or another output folder, the skill copies those
-same verified bytes to one explicit filename and checks both hashes.
+The first verified copy stays in that run's `accepted` folder. The build records
+the accepted data hash and HTML template hash, and verification reproduces the
+canonical file before it is offered as final. If setup points at Downloads or
+another output folder, the skill copies the same verified bytes to one explicit
+filename and checks both hashes.
 
 A normal name looks like this:
 
@@ -55,6 +57,10 @@ clean unrelated files.
 The file contains its own styles, scripts, and accepted data. It does not load
 fonts, libraries, images, analytics, or data from another site. Source links are
 ordinary links and open only when you choose them.
+
+Links to accepted local artifacts are included only when the target is a
+verified regular file inside the declared artifact root and its size and
+SHA-256 match the accepted record.
 
 If JavaScript is blocked, the interactive filters disappear but the research
 itself remains readable.

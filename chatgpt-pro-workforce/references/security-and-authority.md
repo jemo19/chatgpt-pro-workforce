@@ -24,7 +24,10 @@
 
 ## Consequential actions require separate authorization
 
-Do not:
+ChatGPT Pro workers must not directly perform the following actions. Codex may
+perform one only when current higher-authority instructions explicitly include
+that exact effect and all applicable target/recovery gates are satisfied; the
+skill invocation or a worker recommendation is never authority by itself:
 
 - transfer funds, make purchases, or sign transactions;
 - deploy, publish, merge, release, change production systems, or weaken approval
@@ -66,6 +69,9 @@ automation easier.
 ## Browser safety
 
 - Reuse an authenticated session only through an authorized controller.
+- Apply the profile's expected-account policy before submission. A confirmed
+  marker may contain only a user-approved safe display label or local hash;
+  never retain an email address, account ID, billing detail, cookie, or token.
 - Never extract cookies or tokens to reproduce the session elsewhere.
 - Verify the target tab, URL, conversation, and composer before typing.
 - Clear accidental stale composer text before submission only after confirming
@@ -140,9 +146,10 @@ hashes, ambiguous ownership, in-use files, and targets outside the root.
 
 Never broadly clean Downloads, Desktop, home, a project, a vault, browser
 profile, or another run. Preserve accepted exports, handoff/index records, and
-raw evidence according to policy. Prefer a recoverable trash operation. Record
-`RETAINED`, `TRASHED`, `DELETED`, `SKIPPED`, or `FAILED` per file and stop when
-observed scope is broader than approved.
+raw evidence according to policy. Prefer a recoverable operation. The bundled
+helper moves exact bytes into private quarantine and never purges them. Record
+its exact quarantined, identity-blocked, retained, skipped, or failed outcome
+and stop when observed scope is broader than approved.
 
 ## Stop conditions
 

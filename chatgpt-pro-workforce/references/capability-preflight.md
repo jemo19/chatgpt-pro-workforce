@@ -106,7 +106,7 @@ Assess the following capabilities separately:
 | C22 | Independent focus verification | A separate observation can prove the intended window/control has focus immediately before input and confirm the result afterward. |
 | C23 | Manual native-dialog handoff | Current-session user availability for login, native upload/download dialogs, or sensitive prompts is verified, or remains `AVAILABLE_UNTESTED`/`UNKNOWN`. |
 | C24 | Hashing and archive validation | Local tools can hash files, inventory archives without extraction, reject unsafe members, and run required validators. |
-| C25 | ChatGPT Pro account entitlement | The target authenticated session exposes safe visible semantic evidence that the account has Pro. A remembered subscription, worker quality, or prior run is insufficient. |
+| C25 | ChatGPT Pro account entitlement and expected-account match | The target authenticated session exposes safe visible semantic evidence that the account has Pro and, when a confirmed account policy exists, matches its user-approved safe marker. A remembered subscription, worker quality, email address, or prior run is insufficient. |
 | C26 | Target conversation Pro model and maximum thinking power | The exact target conversation exposes semantic proof that the declared model is selected and the thinking-power control reports `Pro, 5 of 5`. Account entitlement or a collapsed `Pro` label alone is insufficient. |
 
 ## 4. Discovery rules
@@ -220,7 +220,12 @@ provider fallback/limit notice, or any evidence that the selected mode drifted.
 
 1. Identify the exact target conversation and its composer semantically.
 2. Read safe account-level UI evidence for C25. A profile or plan label may
-   prove entitlement, but never proves the target conversation's mode.
+   prove entitlement, but never proves the target conversation's mode. Apply
+   the stored account policy: `ANY_SIGNED_IN_PRO` accepts any currently
+   authenticated Pro account; `CONFIRMED_SAFE_ACCOUNT_MARKER` also requires
+   the current user-approved display marker to match; `ASK_EACH_RUN` requires
+   confirmation before sending. Never read or retain an email address, account
+   ID, billing details, cookie, or token for this check.
 3. Inspect the target conversation's visible semantic model/mode control. Use
    its accessible name and selected, current, checked, or pressed state. Discover
    the current labels; do not depend on a brittle selector or fixed coordinates.
@@ -237,12 +242,13 @@ provider fallback/limit notice, or any evidence that the selected mode drifted.
    then independently re-read it. A successful click or slider action without
    the checked model and exact `Pro, 5 of 5` postcondition is `UNKNOWN`, not
    success. This reopened reading is the required selected-state postcondition.
-6. Allow submission only when C25 and C26 are both `AVAILABLE_VERIFIED` and the
+6. Allow submission only when C25 and C26 are both `AVAILABLE_VERIFIED`, the
+   configured expected-account policy is satisfied, and the
    final observation is `PRO_MAX_POWER_VERIFIED`. Persist the evidence before
    typing and repeat the selector verification immediately before submitting
    the prompt.
 
-Never infer active maximum-power Pro from the account badge, a prior
+Never infer active maximum-power Pro or an expected-account match from the account badge, a prior
 conversation, remembered defaults, URL shape, prompt wording, response quality,
 the collapsed `Pro` button, or the mere presence of a Pro option. Do not silently
 accept `High`, an automatic or reduced model, a provider fallback, or an

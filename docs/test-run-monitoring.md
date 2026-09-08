@@ -10,6 +10,7 @@ control may be the cause of a stall.
 Monitoring can check:
 
 - run and lane states, active/unknown conversation count, and prompt hashes;
+- state ownership, monotonic revision, send intent, and reconciliation result;
 - last observation time, response growth, terminal markers, and transient UI
   errors;
 - browser connection, intended ChatGPT tab, composer, and conversation identity;
@@ -20,6 +21,9 @@ Monitoring can check:
 - mechanical, semantic, and independent acceptance gates;
 - usage-limit state, displayed reset time, pause checkpoint, and next action;
 - dashboard health and sanitized snapshot freshness.
+
+The dashboard snapshot has its own revision and freshness check. It is a useful
+view, not permission to act and not a replacement for the durable run database.
 
 Monitoring does not authorize new workers, new permissions, installations,
 destructive recovery, private-data disclosure, or a broader target.

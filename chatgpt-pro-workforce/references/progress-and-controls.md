@@ -294,8 +294,8 @@ The detailed card adds:
 - required/optional prerequisite readiness, setup ID/state/plan, post-setup
   preflight result, manual alternative, and capture-geometry limitations;
 - each Pro lane's last safe model/power observation, semantic selected-state
-  and `Pro, 5 of 5` evidence, verification time, and whether submission is
-  allowed or blocked;
+  and `Pro, 5 of 5` evidence, expected-account policy/match, verification time,
+  and whether submission is allowed or blocked;
 - progress denominators and any changes since the prior card;
 - exact resume cursor and next safe action.
 
@@ -346,8 +346,10 @@ an explicit current-run acknowledgment, and changing the setting never closes
 active chats. The page only copies the intent.
 
 On every invocation, atomically refresh the run's sanitized snapshot when the
-dashboard policy is not `DISABLED`. A page already open polls this file with
-cache disabled. This is data refresh, not background orchestration. Show a URL
+dashboard is `ENABLED` or that exact run's `ON_DEMAND` dashboard was previously
+initialized. An untouched `ON_DEMAND` preference creates nothing. A page
+already open polls this file with cache disabled. This is data refresh, not
+background orchestration. Show a URL
 only after the exact server, run-page, and snapshot verification succeeds;
 when Chrome/browser control is available, also confirm the expected run ID and
 connection state in the rendered page. When verification fails or the process
@@ -446,7 +448,13 @@ should be short and contextual. Help never launches or resumes a worker.
 ## Existing-run migration
 
 Older runs may have lane and handoff state but no aggregate run-state record.
-On the first status or resume request:
+A `status`, `tell me more`, or `help` request builds an in-memory legacy
+projection only: it must not create a run record, claim writer ownership, or
+change any durable file. Label unknown historical values honestly.
+
+On the first `resume`, `continue`, or other mutating request, claim the exact
+run for the current writer session, record the source files and hashes used for
+reconstruction, then create one schema-version-2 run record:
 
 - create a schema-version-2 run record from durable kickoff, iteration, lane, artifact, and
   handoff evidence;
@@ -459,4 +467,6 @@ On the first status or resume request:
   unknown until confirmed;
 - set the migrated concurrency maximum to `2`, with no high-risk
   acknowledgment, without closing or interrupting any already active chat;
-- never invent historical progress ratios or rewrite a submitted prompt.
+- never invent historical progress ratios or rewrite a submitted prompt;
+- append one migration event with source hashes, writer session, and initial
+  revision, then never repeat the migration for that run.

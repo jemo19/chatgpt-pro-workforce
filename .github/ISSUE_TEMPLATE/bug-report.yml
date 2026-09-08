@@ -50,7 +50,24 @@ body:
     id: readiness
     attributes:
       label: Sanitized readiness evidence
-      description: Selected route, capability states, and whether the outcome was verified, failed, or unknown.
+      description: Selected route, capability states, run revision, and whether the outcome was verified, failed, or unknown. Do not include prompts or conversation URLs.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Guided setup or help
+        - ChatGPT Pro account/model gate
+        - Browser or desktop control
+        - Durable run state or resume
+        - Artifact download, intake, or cleanup
+        - Dashboard
+        - Research explorer
+        - Obsidian notes
+        - Installation or packaging
+        - Other
+    validations:
+      required: true
   - type: checkboxes
     id: privacy
     attributes:

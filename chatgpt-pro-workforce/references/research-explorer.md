@@ -56,21 +56,40 @@ Discover an available Python 3.10-or-newer interpreter and use the bundled
 dependencies. Run its help first, then use the equivalent of:
 
 ```text
-<python-path> scripts/research_explorer.py build --data <private-accepted-json> --template assets/research-explorer-template.html --output <exact-output.html>
-<python-path> scripts/research_explorer.py verify --html <exact-output.html> --expected-run-id <RUN_ID>
+<python-path> scripts/research_explorer.py build --data <private-accepted-json> --template assets/research-explorer-template.html --output <exact-output.html> [--artifact-root <directory-containing-output-and-linked-artifacts>]
+<python-path> scripts/research_explorer.py verify --html <exact-output.html> --expected-run-id <RUN_ID> --template assets/research-explorer-template.html --expected-template-sha256 <TEMPLATE_SHA256> --expected-data-sha256 <CANONICAL_DATA_SHA256> [--artifact-root <directory-containing-output-and-linked-artifacts>]
 ```
 
 The helper validates the exact schema, referential integrity, bounded sizes,
 URLs, hashes, and enumerated states before it replaces an output atomically.
-It embeds escaped JSON into one self-contained HTML file. Freeze and hash the
-output, run the applicable HTML/accessibility/browser checks, rehash it, and
-add the final bytes to the accepted artifact manifest. The source JSON may be
-retained as a separate accepted machine-readable artifact when the user wants
-it, but the HTML must work without it.
+It embeds escaped JSON into one self-contained HTML file. Capture the build
+command's `template_sha256` and `data_sha256` results as the accepted identities
+and pass those exact values to `verify`; the data digest covers the helper's
+validated canonical JSON representation, not arbitrary whitespace in the input
+file. Verification revalidates the embedded dataset, confirms the supplied
+template identity, rebuilds the document from those inputs, and requires the
+HTML bytes to equal that canonical rendering. Freeze and hash the output, run
+the applicable HTML/accessibility/browser checks, rehash it, and add the final
+bytes to the accepted artifact manifest. The source JSON may be retained as a
+separate accepted machine-readable artifact when the user wants it, but the
+HTML must work without it.
+
+If any artifact row has a non-empty `relative_link`, pass the same explicit
+`--artifact-root` to both `build` and `verify`. That root must be the canonical
+directory containing the output HTML itself; the helper rejects a different
+root even when the accepted bytes exist there. This binds validation to the
+same directory from which a browser resolves each relative `href`. The helper
+also rejects encoded, absolute, queried, fragmented, traversing, or symlinked
+paths. Every linked target must already exist below the HTML directory as a
+single-link regular file and must match the accepted `size_bytes` and SHA-256
+in the dataset. If there are no relative links, omit `--artifact-root`; its
+presence never turns a local or machine-specific path into accepted evidence.
 
 Mechanical acceptance requires: one regular non-symlink HTML file; a matching
-run ID; valid embedded schema; no remote scripts, styles, fonts, analytics, or
-network-fetch code; no broken internal finding/source references; and a stable
+run ID; accepted template and canonical-data hashes; byte equality with the
+canonical rendering; valid embedded schema; no remote scripts, styles, fonts,
+analytics, or network-fetch code; no broken internal finding/source references;
+verified identities for every relative artifact target; and a stable
 post-validation SHA-256. Semantic acceptance requires the rendered summary,
 findings, confidence, citations, contradictions, limitations, and next steps to
 match the same accepted evidence packet.
@@ -80,7 +99,10 @@ match the same accepted evidence packet.
 Create the first verified explorer inside the run-owned `accepted/` directory.
 When the profile calls for a user-facing Downloads result, copy the exact
 verified bytes to one explicit configured final-output folder or exact filename,
-then rehash both copies. Do not scan, clean, or treat the general Downloads
+then rehash both copies. When the explorer has relative artifact links, place
+the accepted artifact bytes at their declared relative locations first and run
+the helper's full `verify` command against the exported HTML with its own parent
+as `--artifact-root`. Do not scan, clean, or treat the general Downloads
 directory as run-owned. Record both locations, byte count, SHA-256, and whether
 the exported copy is task-created.
 

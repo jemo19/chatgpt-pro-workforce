@@ -74,6 +74,7 @@
     .trust-strip[data-state="loading"] .trust-state,
     .trust-strip[data-state="reconnecting"] .trust-state { color: var(--accent); }
     .trust-strip[data-state="stale"] .trust-state,
+    .trust-strip[data-state="unknown"] .trust-state,
     .trust-strip[data-state="data_error"] .trust-state { color: var(--attention); }
     .trust-strip[data-state="unavailable"] .trust-state { color: var(--danger); }
     .trust-state {
@@ -784,7 +785,7 @@
           <div class="progress-board-head">
             <div>
               <h2 id="progress-title">Registered progress</h2>
-              <p>Exact accepted units only. Open-ended work stays open-ended.</p>
+              <p>Progress against registered work. Open-ended work stays open-ended.</p>
             </div>
             <button class="refresh-button" id="refresh" type="button">Refresh now</button>
           </div>
@@ -914,6 +915,10 @@
       "use strict";
 
       const POLL_MS = 5000;
+      const FETCH_TIMEOUT_MS = 8000;
+      const STALE_AFTER_MS = 15 * 60 * 1000;
+      const MAX_JSON_BYTES = 512 * 1024;
+      const MAX_ITEMS = 256;
       const RETRY_SECONDS = [1, 2, 4, 8, 16, 30];
       const $ = (id) => document.getElementById(id);
       const GOOD_STATES = new Set([
@@ -936,15 +941,74 @@
         "RUNNING_WITH_TRANSIENT_ERROR", "SLOW_NO_FAILURE_EVIDENCE", "STALE", "SUBMITTED",
         "TEMPORARY", "TERMINAL_PARTIAL_ARTIFACT_RETURN", "UNKNOWN"
       ]);
+      const RUN_STATES = new Set([
+        "DRAFT", "READY", "ACTIVE", "PAUSING", "PAUSED", "LIMIT_PAUSED",
+        "RESUMING", "PARTIAL", "BLOCKED", "ACCEPTED", "REJECTED", "STOPPED",
+        "SUPERSEDED"
+      ]);
+      const ALLOCATION_PROFILES = new Set(["PRO_HEAVY", "BALANCED", "CODEX_HEAVY", "LOCAL_ONLY"]);
+      const CODEX_USAGE_BANDS = new Set(["LOWEST", "MODERATE", "HIGH", "CODEX_ONLY"]);
+      const ROUTES = new Set([
+        "FULL_BROWSER_AND_DESKTOP", "BROWSER_ONLY", "BROWSER_WITH_MANUAL_DESKTOP",
+        "MANUAL_BROWSER_HANDOFF", "LOCAL_CODEX_ONLY", "BLOCKED", "UNKNOWN"
+      ]);
+      const FRESHNESS_STATES = new Set(["CURRENT", "STALE", "UNKNOWN"]);
+      const PROGRESS_STATES = new Set(["OPEN", "ACTIVE", "COMPLETE", "BLOCKED", "UNKNOWN"]);
+      const LANE_STATES = new Set([
+        "PLANNED", "PREFLIGHTED", "SUBMITTED", "RUNNING", "RUNNING_HEALTHY",
+        "RUNNING_WITH_TRANSIENT_ERROR", "SLOW_NO_FAILURE_EVIDENCE", "STALLED",
+        "BROWSER_DISCONNECTED", "RETURNED", "TERMINAL_PARTIAL_ARTIFACT_RETURN",
+        "TERMINAL_INCOMPLETE", "MECHANICAL_ACCEPTED", "MECHANICAL_REJECTED",
+        "SEMANTIC_ACCEPTED", "SEMANTIC_REJECTED", "ACCEPTED", "REJECTED", "PARTIAL",
+        "BLOCKED", "NOT_RECOVERABLE", "SUPERSEDED"
+      ]);
+      const READINESS_STATES = new Set([
+        "AVAILABLE_VERIFIED", "AVAILABLE_UNTESTED", "NOT_AVAILABLE", "DEGRADED",
+        "UNKNOWN", "NOT_AUTHORIZED", "DISABLED", "MISCONFIGURED"
+      ]);
+      const ARTIFACT_STATES = new Set([
+        "EXPECTED", "RECOVERED", "RAW", "CANDIDATE", "ACCEPTED", "REJECTED",
+        "DUPLICATE", "TEMPORARY", "NOT_RECOVERABLE", "UNKNOWN"
+      ]);
+      const GATE_KINDS = new Set(["MECHANICAL", "SEMANTIC", "INDEPENDENT"]);
+      const GATE_STATES = new Set(["PENDING", "NOT_RUN", "PASS", "FAIL", "BLOCKED"]);
+      const DECISION_STATES = new Set([
+        "PENDING", "APPROVED", "DEFERRED", "REJECTED", "NOT_REQUIRED", "MANUAL_ACTION_REQUIRED"
+      ]);
+      const SUMMARY_STATES = new Set(["UNSET", "READY", "HEALTHY", "DEGRADED", "BLOCKED", "UNKNOWN"]);
+      const ALERT_LEVELS = new Set(["info", "warning", "error"]);
+      const ALLOCATION_USAGE_BANDS = {
+        PRO_HEAVY: "LOWEST", BALANCED: "MODERATE", CODEX_HEAVY: "HIGH", LOCAL_ONLY: "CODEX_ONLY"
+      };
+      const TOP_FIELDS = [
+        "schema_version", "revision", "run", "progress", "lanes", "readiness", "artifacts",
+        "gates", "decisions", "storage", "notes", "alerts"
+      ];
+      const RUN_FIELDS = [
+        "id", "title", "status", "allocation_profile", "codex_usage_band", "route",
+        "freshness", "updated_at", "next_action"
+      ];
+      const SAFE_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,126}[A-Za-z0-9])?$/;
+      const SHA256 = /^[0-9a-fA-F]{64}$/;
+      const expectedRunId = (() => {
+        const match = window.location.pathname.match(/\/runs\/([^/]+)\/(?:index\.html)?$/);
+        if (!match) return "";
+        try { return decodeURIComponent(match[1]); } catch (_error) { return ""; }
+      })();
       let lastGood = null;
+      let lastGoodSource = null;
       let failureCount = 0;
       let retryTimer = null;
+      let requestGeneration = 0;
+
+      class StatusDataError extends Error {}
 
       const projectionCopy = {
         loading: ["Loading", "Connecting to this run's loopback status feed."],
         current: ["Current", "The latest validated local snapshot is displayed."],
         reconnecting: ["Reconnecting", "The last-known-good snapshot remains visible while the feed is retried."],
         stale: ["Stale", "The snapshot loaded, but its durable update time is old. Confirm the active run before acting."],
+        unknown: ["Unknown", "The snapshot loaded, but its durable update time cannot be trusted."],
         data_error: ["Data error", "The server responded, but status.json was malformed or unsupported."],
         unavailable: ["Unavailable", "The loopback status feed could not be reached. Run the dashboard troubleshooting control in Codex."]
       };
@@ -961,8 +1025,203 @@
         const jitter = delayMs === POLL_MS ? 0 : Math.floor(Math.random() * Math.min(400, delayMs / 4));
         const actual = delayMs + jitter;
         setText("diag-retry", `${Math.ceil(actual / 1000)}s`);
-        retryTimer = window.setTimeout(() => load(false), actual);
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          load(false);
+        }, actual);
       };
+
+      const clearScheduledRetry = () => {
+        window.clearTimeout(retryTimer);
+        retryTimer = null;
+        setText("diag-retry", "after this attempt");
+      };
+
+      const schemaFailure = (detail) => {
+        throw new StatusDataError(`Status snapshot has an unsupported schema: ${detail}`);
+      };
+
+      const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+
+      const expectObject = (value, fields, label) => {
+        if (!isRecord(value)) schemaFailure(`${label} must be an object`);
+        const keys = Object.keys(value);
+        if (keys.length !== fields.length || fields.some((field) => !Object.hasOwn(value, field))) {
+          schemaFailure(`${label} fields do not match schema v1`);
+        }
+        return value;
+      };
+
+      const expectString = (value, label, { nonempty = false, maximum = 4096 } = {}) => {
+        if (typeof value !== "string" || value.length > maximum || (nonempty && !value.trim())) {
+          schemaFailure(`${label} must be ${nonempty ? "a non-empty " : "a "}bounded string`);
+        }
+        return value;
+      };
+
+      const expectEnum = (value, allowed, label) => {
+        expectString(value, label, { nonempty: true, maximum: 64 });
+        if (!allowed.has(value)) schemaFailure(`${label} has an unsupported value`);
+        return value;
+      };
+
+      const expectCount = (value, label) => {
+        if (!Number.isSafeInteger(value) || value < 0) schemaFailure(`${label} must be a non-negative integer`);
+        return value;
+      };
+
+      const expectId = (value, label) => {
+        expectString(value, label, { nonempty: true, maximum: 128 });
+        if (!SAFE_ID.test(value)) schemaFailure(`${label} is not a safe identifier`);
+        return value;
+      };
+
+      const timestampMilliseconds = (value) => {
+        if (typeof value !== "string" || !value || value !== value.trim()) return NaN;
+        if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
+        return Date.parse(value);
+      };
+
+      const expectTimestamp = (value, label) => {
+        expectString(value, label, { nonempty: true, maximum: 128 });
+        if (!Number.isFinite(timestampMilliseconds(value))) schemaFailure(`${label} must be an ISO-8601 timestamp with timezone`);
+        return value;
+      };
+
+      const expectList = (value, label, validator, withIds = true) => {
+        if (!Array.isArray(value) || value.length > MAX_ITEMS) schemaFailure(`${label} must be a bounded array`);
+        const ids = new Set();
+        value.forEach((item, index) => {
+          validator(item, `${label}[${index}]`);
+          if (withIds) {
+            if (ids.has(item.id)) schemaFailure(`${label} contains duplicate ids`);
+            ids.add(item.id);
+          }
+        });
+      };
+
+      const validateProgress = (value, label) => {
+        const item = expectObject(value, ["id", "label", "current", "total", "state", "detail"], label);
+        expectId(item.id, `${label}.id`);
+        expectString(item.label, `${label}.label`, { nonempty: true });
+        expectCount(item.current, `${label}.current`);
+        expectCount(item.total, `${label}.total`);
+        if (item.current > item.total) schemaFailure(`${label}.current must not exceed total`);
+        expectEnum(item.state, PROGRESS_STATES, `${label}.state`);
+        expectString(item.detail, `${label}.detail`);
+      };
+
+      const validateLane = (value, label) => {
+        const item = expectObject(value, ["id", "name", "state", "owner", "summary", "last_observed_at", "next_action"], label);
+        expectId(item.id, `${label}.id`);
+        expectString(item.name, `${label}.name`, { nonempty: true });
+        expectEnum(item.state, LANE_STATES, `${label}.state`);
+        expectString(item.owner, `${label}.owner`, { maximum: 128 });
+        expectString(item.summary, `${label}.summary`);
+        expectTimestamp(item.last_observed_at, `${label}.last_observed_at`);
+        expectString(item.next_action, `${label}.next_action`);
+      };
+
+      const validateReadiness = (value, label) => {
+        const item = expectObject(value, ["id", "label", "interface", "state", "detail"], label);
+        expectId(item.id, `${label}.id`);
+        expectString(item.label, `${label}.label`, { nonempty: true });
+        expectString(item.interface, `${label}.interface`, { nonempty: true, maximum: 128 });
+        expectEnum(item.state, READINESS_STATES, `${label}.state`);
+        expectString(item.detail, `${label}.detail`);
+      };
+
+      const validateArtifact = (value, label) => {
+        const item = expectObject(value, ["id", "name", "state", "size_bytes", "sha256"], label);
+        expectId(item.id, `${label}.id`);
+        expectString(item.name, `${label}.name`, { nonempty: true });
+        expectEnum(item.state, ARTIFACT_STATES, `${label}.state`);
+        expectCount(item.size_bytes, `${label}.size_bytes`);
+        expectString(item.sha256, `${label}.sha256`, { maximum: 64 });
+        if (item.sha256 && !SHA256.test(item.sha256)) schemaFailure(`${label}.sha256 is not a SHA-256 digest`);
+        if (new Set(["RECOVERED", "RAW", "CANDIDATE", "ACCEPTED"]).has(item.state) && !item.sha256) {
+          schemaFailure(`${label}.sha256 is required for materialized artifacts`);
+        }
+      };
+
+      const validateGate = (value, label) => {
+        const item = expectObject(value, ["id", "label", "kind", "state", "detail"], label);
+        expectId(item.id, `${label}.id`);
+        expectString(item.label, `${label}.label`, { nonempty: true });
+        expectEnum(item.kind, GATE_KINDS, `${label}.kind`);
+        expectEnum(item.state, GATE_STATES, `${label}.state`);
+        expectString(item.detail, `${label}.detail`);
+      };
+
+      const validateDecision = (value, label) => {
+        const item = expectObject(value, ["id", "label", "state", "detail"], label);
+        expectId(item.id, `${label}.id`);
+        expectString(item.label, `${label}.label`, { nonempty: true });
+        expectEnum(item.state, DECISION_STATES, `${label}.state`);
+        expectString(item.detail, `${label}.detail`);
+      };
+
+      const validateAlert = (value, label) => {
+        const item = expectObject(value, ["level", "title", "detail"], label);
+        expectEnum(item.level, ALERT_LEVELS, `${label}.level`);
+        expectString(item.title, `${label}.title`, { nonempty: true });
+        expectString(item.detail, `${label}.detail`);
+      };
+
+      const validateStatus = (value) => {
+        const data = expectObject(value, TOP_FIELDS, "status");
+        if (data.schema_version !== 2) schemaFailure("schema_version must be integer 2");
+        expectCount(data.revision, "revision");
+        const run = expectObject(data.run, RUN_FIELDS, "run");
+        expectId(run.id, "run.id");
+        if (!expectedRunId || run.id !== expectedRunId) schemaFailure("run.id does not match this page URL");
+        expectString(run.title, "run.title", { nonempty: true });
+        expectEnum(run.status, RUN_STATES, "run.status");
+        expectEnum(run.allocation_profile, ALLOCATION_PROFILES, "run.allocation_profile");
+        expectEnum(run.codex_usage_band, CODEX_USAGE_BANDS, "run.codex_usage_band");
+        if (ALLOCATION_USAGE_BANDS[run.allocation_profile] !== run.codex_usage_band) {
+          schemaFailure("run.codex_usage_band does not match run.allocation_profile");
+        }
+        expectEnum(run.route, ROUTES, "run.route");
+        expectEnum(run.freshness, FRESHNESS_STATES, "run.freshness");
+        expectTimestamp(run.updated_at, "run.updated_at");
+        expectString(run.next_action, "run.next_action", { nonempty: true });
+
+        expectList(data.progress, "progress", validateProgress);
+        expectList(data.lanes, "lanes", validateLane);
+        expectList(data.readiness, "readiness", validateReadiness);
+        expectList(data.artifacts, "artifacts", validateArtifact);
+        expectList(data.gates, "gates", validateGate);
+        expectList(data.decisions, "decisions", validateDecision);
+        expectList(data.alerts, "alerts", validateAlert, false);
+
+        const storage = expectObject(data.storage, ["state", "summary", "used_bytes", "budget_bytes", "artifact_count", "detail"], "storage");
+        expectEnum(storage.state, SUMMARY_STATES, "storage.state");
+        expectString(storage.summary, "storage.summary");
+        expectCount(storage.used_bytes, "storage.used_bytes");
+        expectCount(storage.budget_bytes, "storage.budget_bytes");
+        expectCount(storage.artifact_count, "storage.artifact_count");
+        expectString(storage.detail, "storage.detail");
+        if (storage.budget_bytes && storage.used_bytes > storage.budget_bytes) {
+          schemaFailure("storage.used_bytes must not exceed storage.budget_bytes");
+        }
+
+        const notes = expectObject(data.notes, ["state", "summary", "count", "updated_at", "detail"], "notes");
+        expectEnum(notes.state, SUMMARY_STATES, "notes.state");
+        expectString(notes.summary, "notes.summary");
+        expectCount(notes.count, "notes.count");
+        expectTimestamp(notes.updated_at, "notes.updated_at");
+        expectString(notes.detail, "notes.detail");
+        return data;
+      };
+
+      const deriveFreshness = (run, nowMs = Date.now()) => {
+        if (run.freshness === "STALE" || run.freshness === "UNKNOWN") return run.freshness;
+        const updatedMs = timestampMilliseconds(run.updated_at);
+        if (!Number.isFinite(updatedMs) || updatedMs > nowMs) return "UNKNOWN";
+        return nowMs - updatedMs > STALE_AFTER_MS ? "STALE" : "CURRENT";
+      };
+
       const toneFor = (value) => {
         const state = String(value || "").toUpperCase();
         if (GOOD_STATES.has(state)) return "good";
@@ -997,6 +1256,8 @@
       const hydrateCommands = (runId) => {
         document.querySelectorAll("[data-command-template]").forEach((node) => {
           node.textContent = node.dataset.commandTemplate.replaceAll("{RUN_ID}", runId);
+          const button = node.closest(".command-item")?.querySelector(".copy-command");
+          if (button) button.setAttribute("aria-label", `Copy command: ${node.textContent}`);
         });
       };
 
@@ -1144,19 +1405,21 @@
         });
       };
 
-      const render = (data) => {
+      const render = (data, freshness) => {
         const run = data.run;
         document.title = `${run.id} · Workforce status`;
         setChip("run-state", run.status);
-        setChip("freshness", run.freshness);
+        setChip("freshness", freshness);
         setText("run-title", run.title);
         setText("run-id", run.id);
         setText("next-action", run.next_action);
         setText("allocation", run.allocation_profile);
         setText("codex-use", `${run.codex_usage_band} (qualitative)`);
         setText("route", run.route);
-        setText("updated-at", formatTime(run.updated_at));
-        $("updated-at").dateTime = run.updated_at;
+        const durableTimeKnown = run.updated_at !== "1970-01-01T00:00:00Z";
+        setText("updated-at", durableTimeKnown ? formatTime(run.updated_at) : "Not recorded");
+        if (durableTimeKnown) $("updated-at").dateTime = run.updated_at;
+        else $("updated-at").removeAttribute("datetime");
         hydrateCommands(run.id);
         renderProgress(data.progress || []);
         renderLanes(data.lanes || []);
@@ -1171,52 +1434,94 @@
       let loading = false;
       const load = async (manual = false) => {
         if (loading) return;
+        clearScheduledRetry();
         loading = true;
+        let nextDelay = POLL_MS;
         $("refresh").disabled = true;
         $("retry").disabled = true;
         $("command").dataset.refreshing = "true";
         setText("diag-attempt", new Date().toLocaleTimeString());
         if (!lastGood) setProjection("loading");
+        const generation = ++requestGeneration;
+        const controller = new AbortController();
+        let timeoutTimer;
         try {
-          const response = await fetch(`status.json?now=${Date.now()}`, { cache: "no-store", credentials: "omit" });
-          if (!response.ok) throw new Error(`Status request returned ${response.status}`);
+          const request = (async () => {
+            const response = await fetch(`status.json?now=${Date.now()}`, {
+              cache: "no-store",
+              credentials: "omit",
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error(`Status request returned ${response.status}`);
+            const declaredLength = Number(response.headers.get("Content-Length"));
+            if (Number.isFinite(declaredLength) && declaredLength > MAX_JSON_BYTES) {
+              throw new StatusDataError(`status.json exceeds ${MAX_JSON_BYTES} bytes`);
+            }
+            return response.text();
+          })();
+          const deadline = new Promise((_resolve, reject) => {
+            timeoutTimer = window.setTimeout(() => {
+              controller.abort();
+              reject(new DOMException(
+                `Status request timed out after ${FETCH_TIMEOUT_MS / 1000} seconds`,
+                "AbortError"
+              ));
+            }, FETCH_TIMEOUT_MS);
+          });
+          const source = await Promise.race([request, deadline]);
+          if (generation !== requestGeneration) return;
           let data;
           try {
-            data = await response.json();
-          } catch (_error) {
-            throw new Error("status.json contains malformed JSON");
+            if (new TextEncoder().encode(source).byteLength > MAX_JSON_BYTES) {
+              throw new StatusDataError(`status.json exceeds ${MAX_JSON_BYTES} bytes`);
+            }
+            data = JSON.parse(source);
+          } catch (error) {
+            if (error instanceof StatusDataError) throw error;
+            throw new StatusDataError("status.json contains malformed JSON");
           }
-          if (!data || data.schema_version !== 1 || !data.run || !Array.isArray(data.progress)) throw new Error("Status snapshot has an unsupported schema");
-          render(data);
+          validateStatus(data);
+          if (lastGood && data.revision < lastGood.revision) {
+            throw new StatusDataError("status.json has an older revision than the displayed snapshot");
+          }
+          if (lastGood && data.revision === lastGood.revision && source !== lastGoodSource) {
+            throw new StatusDataError("status.json conflicts with the displayed revision");
+          }
+          const freshness = deriveFreshness(data.run);
+          render(data, freshness);
           lastGood = data;
+          lastGoodSource = source;
           failureCount = 0;
-          $("connection-status").replaceChildren(make("strong", "", "Current."), document.createTextNode(" Local snapshot loaded successfully."));
+          const freshnessLabel = freshness.charAt(0) + freshness.slice(1).toLowerCase();
+          $("connection-status").replaceChildren(make("strong", "", `${freshnessLabel}.`), document.createTextNode(" Local snapshot loaded successfully."));
           setText("fetched-at", new Date().toLocaleTimeString());
           $("fetched-at").dateTime = new Date().toISOString();
           setText("diag-success", new Date().toLocaleTimeString());
           setText("diag-schema", String(data.schema_version));
           setText("diag-failures", "0");
-          const updatedMs = new Date(data.run.updated_at).getTime();
-          const isStale = Number.isFinite(updatedMs) && Date.now() - updatedMs > 15 * 60 * 1000;
-          setProjection(isStale ? "stale" : "current");
-          schedule(POLL_MS);
+          setProjection(freshness.toLowerCase());
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown local status error";
+          const message = error instanceof DOMException && error.name === "AbortError"
+            ? `Status request timed out after ${FETCH_TIMEOUT_MS / 1000} seconds`
+            : (error instanceof Error ? error.message : "Unknown local status error");
           failureCount += 1;
+          nextDelay = RETRY_SECONDS[Math.min(failureCount - 1, RETRY_SECONDS.length - 1)] * 1000;
           setText("diag-failures", String(failureCount));
-          const dataError = /malformed JSON|unsupported schema/.test(message);
+          const dataError = error instanceof StatusDataError;
           const state = dataError ? "data_error" : (lastGood ? "reconnecting" : (failureCount > 2 ? "unavailable" : "reconnecting"));
           setProjection(state, `${message}. ${lastGood ? "Showing the last-known-good snapshot." : "No validated snapshot has loaded yet."}`);
           $("connection-status").replaceChildren(make("strong", "", dataError ? "Status data error." : "Status feed interrupted."), document.createTextNode(` ${message}. Use dashboard troubleshoot if retries do not recover.`));
-          $("freshness").textContent = "Stale";
-          $("freshness").dataset.tone = "warn";
+          if (lastGood) setChip("freshness", deriveFreshness(lastGood.run));
           if (manual) setText("fetched-at", new Date().toLocaleTimeString());
-          schedule(RETRY_SECONDS[Math.min(failureCount - 1, RETRY_SECONDS.length - 1)] * 1000);
         } finally {
-          loading = false;
-          $("refresh").disabled = false;
-          $("retry").disabled = false;
-          window.setTimeout(() => { $("command").dataset.refreshing = "false"; }, 720);
+          window.clearTimeout(timeoutTimer);
+          if (generation === requestGeneration) {
+            loading = false;
+            $("refresh").disabled = false;
+            $("retry").disabled = false;
+            window.setTimeout(() => { $("command").dataset.refreshing = "false"; }, 720);
+            schedule(nextDelay);
+          }
         }
       };
 
@@ -1242,6 +1547,12 @@
           }
         });
       });
+      window.setInterval(() => {
+        if (!lastGood) return;
+        const freshness = deriveFreshness(lastGood.run);
+        setChip("freshness", freshness);
+        if (!loading && freshness !== "CURRENT") setProjection(freshness.toLowerCase());
+      }, 30000);
       load();
     })();
   </script>

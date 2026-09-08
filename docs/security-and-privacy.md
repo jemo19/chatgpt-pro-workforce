@@ -40,13 +40,17 @@ or use raw coordinates when a semantic route exists.
 
 Worker returns enter a run-owned incoming area, then immutable raw storage. The
 workflow records path, type, size, SHA-256, source conversation/lane, retrieval
-time, and validation state. Archive extraction rejects traversal, absolute
+time, and validation state. It commits a write-ahead intake record before raw
+or extracted publication, then reconciles interrupted, rejected, and committed
+bytes without blind retry. Archive extraction rejects traversal, absolute
 paths, ambiguous duplicates, symlinks, and special files.
 
 Cleanup is never a broad Downloads sweep. A candidate must be inside the
 configured run-owned root, have an accepted exported copy, match its planned
-hash, be unused, and receive the configured confirmation. Hash changes,
-symlinks, uncertainty, or unrelated ownership suppress deletion.
+hash, be unused, and receive the configured confirmation. The helper then moves
+exact bytes into private run-owned quarantine; it does not permanently purge
+them. Hash changes, symlinks, uncertainty, or unrelated ownership suppress the
+move.
 
 ## Local dashboard
 

@@ -93,19 +93,27 @@ repaired bytes under a new identity and rerun every invalidated mechanical and
 semantic check. A second failure returns to the responsible worker or becomes
 an explicit blocker; it is not permission for iterative local reinterpretation.
 
-Return work to the worker for:
+Return a worker candidate to its responsible worker when correcting that
+candidate requires:
 
 - major recalculation;
 - new source research;
 - missing provenance reconstruction;
 - material reinterpretation;
 - broad missing sections;
-- contradiction resolution;
+- material contradiction resolution inside the worker-owned candidate;
 - replacement of fabricated or unsuitable evidence;
 - regeneration of large structured output.
 
 Never silently repair a rejected packet and call it the worker's accepted
 original. Preserve parent, rejected, repaired, and accepted identities.
+
+This repair ceiling does not prevent Codex from doing its own independent
+verification or producing a new derived integration artifact. Codex may
+adjudicate conflicting worker evidence from authoritative sources and synthesize
+an integration-owned result, provided it preserves each worker's immutable raw
+candidate, cites the derivation and decisions, uses a new identity/hash, and
+runs both gates on the integrated bytes.
 
 ## Dispositions
 

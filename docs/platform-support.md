@@ -41,19 +41,21 @@ Desktop control is not required when browser semantics can complete the task.
 The Linux profile records these independently rather than treating them as one
 generic adapter:
 
-- signed-in Chrome control;
-- Linux Computer Use MCP;
-- Chrome DevTools MCP;
-- Playwright-extension MCP.
+- signed-in Chrome control, commonly exposed through `chrome:control-chrome`;
+- Linux Computer Use MCP, commonly exposed as `mcp__computer_use_linux__*`;
+- Chrome DevTools MCP, commonly exposed as `mcp__chrome_devtools__*`;
+- Playwright-extension MCP, commonly exposed as
+  `mcp__playwright_extension__browser_*`.
 
 For non-browser actions, the skill can use AT-SPI/accessibility trees, explicit
 KWin/window identity, verified focus, portal screenshots, and bounded input
 synthesis. It performs target/focus prechecks and semantic postcondition checks.
 Transport success without an observed result is `OUTCOME_UNKNOWN`, not success.
 
-Linux distributions, desktop environments, Wayland/X11 boundaries, portals,
-and MCP configurations vary. No exact MCP namespace or binary is assumed until
-discovered in the active environment.
+Those are known interface families, not proof that they are installed, connected,
+or authorized in the current session. Linux distributions, desktop environments,
+Wayland/X11 boundaries, portals, and MCP configurations vary, so preflight still
+discovers the callable name and checks it before use.
 
 ## macOS
 
@@ -69,6 +71,14 @@ The preferred route remains semantic browser control. Desktop fallbacks use
 discoverable UI Automation/accessibility and explicit window/focus evidence.
 The skill preserves UAC secure-desktop boundaries and does not bypass elevation
 or synthesize input into an unverified target.
+
+The macOS and Windows guidance is documentation-backed, not live-tested on
+this Linux build. Current primary references are
+[Apple Privacy & Security](https://support.apple.com/guide/mac-help/change-privacy-security-settings-on-mac-mchl211c911f/mac),
+[Apple AXUIElement](https://developer.apple.com/documentation/applicationservices/axuielement_h),
+[Microsoft UI Automation](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-providersoverview),
+[Microsoft SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput),
+and [Windows Graphics Capture](https://learn.microsoft.com/en-us/windows/apps/develop/media-authoring-processing/screen-capture).
 
 ## Missing prerequisites
 

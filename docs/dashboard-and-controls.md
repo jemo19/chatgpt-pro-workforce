@@ -2,9 +2,9 @@
 
 ## Purpose
 
-The optional dashboard is a polished, read-only view of sanitized durable run
-state. It complements the compact in-chat progress card; it is not another
-orchestrator and cannot keep work alive after the active session ends.
+The optional dashboard is a read-only view of sanitized durable run state. It
+sits beside the compact in-chat progress card; it is not another orchestrator
+and cannot keep work alive after the active session ends.
 
 The top summary uses exact registered ratios for scope, workers, artifacts,
 validation, and acceptance. Unknown denominators remain named states rather
@@ -21,14 +21,16 @@ decisions, warnings, and the next safe action.
 - Serves a strict content security policy, frame denial, and no-store headers.
 - Reads size-bounded files through descriptor identity checks.
 - Polls sanitized JSON and renders with text-safe DOM operations.
+- Requires status schema version 2 and a monotonically increasing revision;
+  stale or conflicting revisions do not replace the last good view.
 - Exposes copy buttons only; there is no pause, resume, delete, uninstall, or
   arbitrary-command endpoint.
 
-The dashboard URL is displayed only after the helper verifies the exact server
-identity, requested run page, run ID, HTML shell, status schema, and snapshot
-hash. When Chrome control is available, the skill also opens that exact URL and
-checks the visible run identity and connection banner. A remembered or dead URL
-is omitted.
+Each server start creates a new random instance ID. The dashboard URL is shown
+only after the helper matches that ID and verifies the requested run page, run
+ID, HTML shell, schema, and snapshot hash. When Chrome control is available,
+the skill also opens that URL and checks the visible run identity and connection
+banner. A remembered or dead URL is not reused.
 
 ## Refresh behavior
 
@@ -53,9 +55,14 @@ $chatgpt-pro-workforce status RUN_ID
 $chatgpt-pro-workforce tell me more RUN_ID
 $chatgpt-pro-workforce pause RUN_ID
 $chatgpt-pro-workforce resume RUN_ID
+$chatgpt-pro-workforce continue RUN_ID
+$chatgpt-pro-workforce stop RUN_ID
+$chatgpt-pro-workforce review discovered topics RUN_ID
 $chatgpt-pro-workforce change allocation RUN_ID
 $chatgpt-pro-workforce change concurrency RUN_ID FINITE_MAXIMUM
+$chatgpt-pro-workforce dashboard RUN_ID
 $chatgpt-pro-workforce dashboard troubleshoot RUN_ID
+$chatgpt-pro-workforce dashboard stop RUN_ID
 $chatgpt-pro-workforce export explorer RUN_ID
 $chatgpt-pro-workforce help
 $chatgpt-pro-workforce uninstall
@@ -67,20 +74,20 @@ checks. The page itself never interprets or executes it.
 ## Start on demand
 
 Choose `ON_DEMAND` during guided setup, then request the dashboard for a run.
-The helper prints a verified loopback URL only after initialization and exact-
-run validation. If the page fails, `dashboard troubleshoot` classifies server,
-root-identity, run-page, or snapshot faults and allows at most one bounded
-restart of an identity-matched skill-owned process; it never kills an unknown
-port owner. Closing the server or ending its host session removes that live
-surface; the durable run state remains the source for a future refresh.
+The helper prints a loopback URL and server instance ID, and the skill verifies
+both before showing the link. An updated HTML shell can be installed atomically
+without changing the run's status or revision. If the page fails,
+`dashboard troubleshoot` separates server, instance, root, run-page, shell,
+schema, and snapshot faults. It may make one bounded restart of an
+identity-matched skill-owned process; it never kills an unknown port owner.
+Closing the server removes the live page, but the durable run state remains.
 
 ## What it looks like
 
-The live page uses the Blue Hour Archive system: a deep navy working surface,
-cobalt for current transport and progress, violet for accepted work, amber for
-attention, and coral for failure. It is laid out as a ruled operations ledger,
-not a pile of floating cards. Run identity, snapshot trust, the next safe
-action, five separate ratios, and visible worker state stay near the top.
+The live page uses a deep navy working surface with blue for current work,
+violet for accepted work, amber for attention, and coral for failure. The layout
+keeps run identity, snapshot trust, the next safe action, five separate ratios,
+and worker state near the top.
 
 Status labels include their words and borders, so color is never the only cue.
 Titles stay compact, corners stay close to square, and identifiers, timestamps,
@@ -92,3 +99,8 @@ The Chrome automation or debugging bar can take height away from the content
 viewport and change the apparent aspect ratio. Review the measured content
 viewport, not just the outer browser window; the dashboard has a reduced-height
 layout for that case.
+
+Current examples:
+
+- [Run overview](images/dashboard-overview-v1.2.jpg)
+- [Copyable controls](images/dashboard-controls-v1.2.jpg)

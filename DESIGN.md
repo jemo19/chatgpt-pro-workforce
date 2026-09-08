@@ -81,7 +81,7 @@ sanitized state and the explorer does not fetch in the background.
 
 ## Provenance
 
-Blue Hour Archive interprets the operator’s compact `stats.png` reference and
-the committed Impeccable seed `61ffdee4`. The final concept came from a
+Blue Hour Archive interprets the operator’s compact progress-bar screenshot
+and the committed Impeccable seed `61ffdee4`. The final concept came from a
 logged-in ChatGPT Pro lane; Codex retained local review of safety, data,
 accessibility, and the dependency-free implementation.

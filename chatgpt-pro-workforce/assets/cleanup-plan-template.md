@@ -15,7 +15,7 @@ updated_at: "{{ISO_8601}}"
 - Storage policy: `{{POLICY}}`
 - Retention policy: `{{POLICY}}`
 - Cleanup approval policy: `{{POLICY}}`
-- Cleanup method: `{{TRASH|PERMANENT_DELETE|NO_ACTION}}`
+- Cleanup method: `{{PRIVATE_RUN_QUARANTINE|PLATFORM_TRASH|NO_ACTION}}`
 - Accepted artifact export and hash verified: `{{yes|no|not-applicable}}`
 - Handoff/index links verified: `{{yes|no|not-applicable}}`
 - Active process check: `{{CLEAR|IN_USE|UNKNOWN}}`
@@ -24,7 +24,7 @@ updated_at: "{{ISO_8601}}"
 
 | Artifact ID | Exact resolved path | Bytes | SHA-256 | Ownership | Current disposition | Proposed action | Reason |
 |---|---|---:|---|---|---|---|---|
-| `{{ID}}` | `{{PATH}}` | {{BYTES}} | `{{HASH}}` | `{{task-owned|exact-browser-return}}` | `{{raw|candidate|rejected|duplicate|temporary}}` | `{{RETAIN|TRASH|DELETE}}` | {{REASON}} |
+| `{{ID}}` | `{{PATH}}` | {{BYTES}} | `{{HASH}}` | `{{task-owned|exact-browser-return}}` | `{{raw|candidate|rejected|duplicate|temporary}}` | `{{RETAIN|QUARANTINE|TRASH}}` | {{REASON}} |
 
 - Proposed retained bytes: {{BYTES}}
 - Proposed removed bytes: {{BYTES}}
@@ -42,9 +42,11 @@ updated_at: "{{ISO_8601}}"
 
 | Artifact ID | Attempted at | Outcome | Postcondition evidence | Exact error / next action |
 |---|---|---|---|---|
-| `{{ID}}` | {{ISO_8601_OR_NOT_RUN}} | `{{RETAINED|TRASHED|DELETED|SKIPPED|FAILED|NOT_RUN}}` | {{EVIDENCE}} | {{ERROR_OR_NEXT_ACTION}} |
+| `{{ID}}` | {{ISO_8601_OR_NOT_RUN}} | `{{RETAINED|TRASHED|QUARANTINED|QUARANTINED_RECONCILED|QUARANTINED_IDENTITY_CHANGED|BLOCKED_IDENTITY_CHANGED|BLOCKED_ARTIFACT_MISSING|SKIPPED|FAILED|NOT_RUN}}` | {{EVIDENCE}} | {{ERROR_OR_NEXT_ACTION}} |
 
 - Bytes retained: {{BYTES}}
-- Bytes trashed/deleted: {{BYTES}}
+- Bytes trashed/quarantined: {{BYTES}}
+- Quarantine root and retained bytes: `{{PATH_OR_NONE}}` / {{BYTES}}
+- Permanent purge authorized or performed by this plan: `no`
 - Unknown outcomes: `none`
 - Resume reconciliation required: {{ITEMS_OR_NONE}}

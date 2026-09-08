@@ -31,16 +31,19 @@ When the current Codex `skill-creator` validator is installed, also run:
 make validate-authoritative
 ```
 
-Build the deterministic release archive with:
+Build and then verify the deterministic release set with:
 
 ```bash
-make package
+make verify-package
 ```
+
+That verifies the ZIP, SHA-256 sidecar, and inventory as one release. Do not
+publish a ZIP without its matching sidecars.
 
 ## Pull requests
 
 - Keep one coherent behavior change per pull request.
-- Describe the user-visible outcome and preserved safety boundaries.
+- Say what changed for the user and which safety boundaries stayed in place.
 - Add or update a meaningful behavior test when decisions or state transitions
   change; avoid tests that only match decorative wording.
 - Document live versus simulated evidence truthfully.

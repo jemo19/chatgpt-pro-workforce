@@ -29,6 +29,15 @@ file or module scope. Blind review uses a fresh conversation; corrections and
 continuations normally stay in the same conversation unless its state is
 contaminated or repeatedly failing.
 
+Durable state has one active writer and a monotonic revision. Before typing a
+worker prompt, Codex records a send intent with the lane, conversation, attempt,
+and prompt hash. It then records the observed result as acknowledged, not sent,
+or outcome unknown. A timeout is never treated as proof that nothing happened.
+Linux can enforce this through the bundled transactional helper. macOS,
+Windows, and failed-helper routes use single-writer immutable, hash-chained
+revision files and stop browser input if ownership or commit verification is
+not available.
+
 ## Pro/Codex allocation
 
 The user can change the allocation for future work at any time:
@@ -69,6 +78,13 @@ Acceptance has separate gates:
 
 Small deterministic repairs may be local. Material corrections go back to the
 responsible worker with preserved evidence and a bounded correction prompt.
+
+Archive intake is bounded before extraction. Unsafe names, traversal, aliases,
+duplicates, symlinks, special files, encrypted entries, excessive expansion,
+and compression-ratio bombs are rejected. A durable intake intent is written
+before raw or extracted bytes so interrupted and rejected material remains
+traceable. Cleanup uses an exact recorded plan and rechecks identity and hash
+immediately before moving a run-owned file into recoverable quarantine.
 
 ## Pause and resume
 

@@ -29,6 +29,7 @@ created_at: "{{ISO_8601}}"
 - Provider-shown reset / resume-not-before: {{VALUE_OR_NONE}}
 - Healthy workers possibly still active: `{{yes|no|unknown}}`
 - Maximum simultaneous Pro workers / active-or-unknown count: `{{FINITE_INTEGER_DEFAULT_2}}` / `{{NONNEGATIVE_INTEGER_OR_UNKNOWN}}`
+- Expected-account policy / final match: `{{ANY_SIGNED_IN_PRO|CONFIRMED_SAFE_ACCOUNT_MARKER|ASK_EACH_RUN}}` / `{{MATCH|MISMATCH|UNKNOWN|NOT_APPLICABLE}}`
 - Concurrency gate / acknowledged exact maximum: `{{OPEN|HIGH_RISK_ACK_REQUIRED|ACKNOWLEDGED_FOR_EXACT_LIMIT|CAPACITY_BLOCKED|UNKNOWN}}` / `{{FINITE_INTEGER_OR_NONE}}`
 - High-risk acknowledgment time/scope: {{ISO_8601_OR_NONE}} / `{{CURRENT_RUN_EXACT_LIMIT_OR_NONE}}`
 
@@ -61,7 +62,7 @@ created_at: "{{ISO_8601}}"
 
 - Run-owned download root / manifest: `{{PATH}}` / `{{PATH}}`
 - Retention / cleanup status / plan: `{{POLICY}}` / `{{STATUS}}` / `{{PATH_OR_NONE}}`
-- Cleanup outcomes: {{RETAINED_TRASHED_DELETED_SKIPPED_FAILED_OR_NONE}}
+- Cleanup outcomes: {{RETAINED_TRASHED_QUARANTINED_IDENTITY_BLOCKED_SKIPPED_FAILED_OR_NONE}}
 - Note policy / vault / research root: `{{POLICY}}` / `{{PATH_OR_NOT_APPLICABLE}}` / `{{PATH_OR_NOT_APPLICABLE}}`
 - Locator source / recommended path / confirmation: `{{SOURCE_OR_NONE}}` / `{{PATH_OR_NONE}}` / `{{CONFIRMED|REJECTED|PENDING|NOT_APPLICABLE}}`
 - Topic slug / folder / index: `{{SLUG_OR_NONE}}` / `{{PATH_OR_NONE}}` / `{{PATH_OR_NONE}}`

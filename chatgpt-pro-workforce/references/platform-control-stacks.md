@@ -134,6 +134,10 @@ Current primary references:
   https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-providersoverview
 - Microsoft Windows app UI Automation and foreground-input safeguards:
   https://learn.microsoft.com/en-us/windows/apps/dev-tools/winapp-cli/ui-automation
+- Microsoft `SendInput` integrity/UIPI boundary:
+  https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput
+- Microsoft Windows Graphics Capture and user-selected window/display consent:
+  https://learn.microsoft.com/en-us/windows/apps/develop/media-authoring-processing/screen-capture
 
 ## First-use and invocation checks
 

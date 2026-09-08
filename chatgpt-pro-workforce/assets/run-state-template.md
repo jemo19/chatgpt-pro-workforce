@@ -2,6 +2,9 @@
 entity_type: workforce-run
 schema_version: 2
 run_id: "{{RUN_ID}}"
+state_revision: "{{NONNEGATIVE_INTEGER}}"
+writer_session: "{{SAFE_SESSION_ID_OR_UNCLAIMED}}"
+writer_state: "{{CLAIMED|CHECKPOINTED|RELEASED}}"
 run_status: "{{DRAFT|READY|ACTIVE|PAUSING|PAUSED|LIMIT_PAUSED|RESUMING|PARTIAL|BLOCKED|ACCEPTED|REJECTED|STOPPED|SUPERSEDED}}"
 allocation_profile: "{{PRO_HEAVY|BALANCED|CODEX_HEAVY|LOCAL_ONLY}}"
 codex_usage_band: "{{LOWEST|MODERATE|HIGH|CODEX_ONLY}}"
@@ -19,6 +22,14 @@ updated_at: "{{ISO_8601}}"
 ## Outcome and controls
 
 - Requested outcome: {{OUTCOME}}
+- State root / run index: `{{PATH}}` / `{{PATH}}`
+- State backend / platform: `{{LINUX_HELPER|PORTABLE_IMMUTABLE_REVISIONS}}` / `{{PLATFORM}}`
+- Backend security preflight / privacy claim: `{{PASS|FAIL|NOT_VERIFIED}}` / {{BOUNDED_CLAIM_OR_NONE}}
+- State revision / previous revision: `{{NONNEGATIVE_INTEGER}}` / `{{NONNEGATIVE_INTEGER_OR_NONE}}`
+- Current / previous revision SHA-256: `{{SHA256}}` / `{{SHA256_OR_NONE}}`
+- Predecessor / successor run: `{{RUN_ID_OR_NONE}}` / `{{RUN_ID_OR_NONE}}`
+- Writer session / state: `{{SAFE_SESSION_ID_OR_UNCLAIMED}}` / `{{CLAIMED|CHECKPOINTED|RELEASED}}`
+- Writer claimed / last checkpoint: {{ISO_8601_OR_NONE}} / {{ISO_8601_OR_NONE}}
 - Workforce profile: `{{PATH}}`
 - Kickoff brief: `{{PATH}}`
 - Capability report: `{{PATH_OR_PENDING}}`
@@ -48,6 +59,7 @@ updated_at: "{{ISO_8601}}"
 - Capability delta: {{DELTA_OR_NONE_OBSERVED}}
 - Current-session evidence path: `{{PATH}}`
 - Pro account entitlement: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE}}`
+- Expected-account policy / match: `{{ANY_SIGNED_IN_PRO|CONFIRMED_SAFE_ACCOUNT_MARKER|ASK_EACH_RUN}}` / `{{MATCH|MISMATCH|UNKNOWN|NOT_APPLICABLE}}`
 - Target conversation Pro model/power: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE|NOT_APPLICABLE}}`
 - Latest Pro observation / verified at: `{{PRO_MAX_POWER_VERIFIED|PRO_LOWER_POWER|PRO_MODEL_NOT_SELECTED|PRO_UNAVAILABLE|PRO_AMBIGUOUS|PRO_LIMITED_OR_FALLBACK|UNKNOWN|NOT_APPLICABLE}}` / {{ISO_8601_OR_NEVER}}
 - Pro submission gate: `{{OPEN_FOR_VERIFIED_TARGET_ONLY|BLOCKED|REVERIFY_REQUIRED|NOT_APPLICABLE}}`
@@ -81,6 +93,15 @@ updated_at: "{{ISO_8601}}"
 |---|---|---|---|---|---|---|
 | `{{LANE_ID}}` | `{{MODE}}` | `{{POLICY}}` | `{{PATH}}` | `{{STATE}}` | {{ISO_8601}} | {{NEXT_ACTION}} |
 
+## Append-only submission ledger
+
+Never rewrite or delete an earlier row. Record a new disposition row when the
+same submission changes state.
+
+| Sequence | Lane | Conversation identity | Prompt SHA-256 | Submitted at | Disposition | Canonical sequence / evidence |
+|---:|---|---|---|---|---|---|
+| {{N}} | `{{LANE_ID}}` | `{{SAFE_CONVERSATION_ID}}` | `{{SHA256}}` | {{ISO_8601}} | `{{SUBMITTED|RUNNING|RETURNED|OUTCOME_UNKNOWN|TERMINAL|SUPERSEDED|SUPPRESSED_DUPLICATE}}` | {{SEQUENCE_OR_EVIDENCE}} |
+
 ## Progress registry
 
 Bars are derived only from the registered units below.
@@ -107,7 +128,7 @@ Bars are derived only from the registered units below.
 - Retention policy: `{{REVIEW_BEFORE_DELETE|KEEP_ALL|KEEP_ACCEPTED_ONLY|DELETE_TEMP_AFTER_ACCEPTANCE|USER_MANAGED}}`
 - Cleanup status / plan: `{{NOT_PLANNED|PLANNED|AWAITING_APPROVAL|APPROVED|IN_PROGRESS|COMPLETE|PARTIAL|BLOCKED|DECLINED}}` / `{{PATH_OR_NONE}}`
 - Cleanup authorization: {{ISO_8601_AND_SCOPE_OR_NONE}}
-- Manifest and outcomes: {{EXACT_HASH_BOUND_FILES_AND_RETAINED_TRASHED_DELETED_SKIPPED_FAILED_OR_NONE}}
+- Manifest and outcomes: {{EXACT_HASH_BOUND_FILES_AND_RETAINED_TRASHED_QUARANTINED_BLOCKED_SKIPPED_FAILED_OR_NONE}}
 
 ## Research notes
 
@@ -142,6 +163,9 @@ Bars are derived only from the registered units below.
 
 ## Pause, capacity, and resume
 
+- Event/revision capacity used / ordinary limit / hard limit: `{{N}}` / `{{N}}` / `{{N}}`
+- Safety reserve remaining / rollover required: `{{N}}` / `{{yes|no}}`
+- Rollover reason / predecessor final revision and hash: `{{EVENT_CAPACITY_ROLLOVER|NONE}}` / {{REVISION_AND_SHA256_OR_NONE}}
 - Pause reason: `{{NONE|USER_REQUEST|USAGE_LIMIT|CONTROL_LOSS|EXTERNAL_BLOCKER}}`
 - Healthy workers possibly still active: `{{yes|no|unknown}}`
 - Safe visible capacity evidence: {{EVIDENCE_OR_NONE}}

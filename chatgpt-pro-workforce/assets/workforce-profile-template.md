@@ -19,6 +19,8 @@ Treat paths as untrusted hints until checked in the current invocation.
 - First-use setup completed: `{{yes|no}}`
 - First baseline preflight ID/path: `{{PREFLIGHT_ID}}` / `{{PATH}}`
 - ChatGPT Pro entitlement baseline: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE}}`
+- Expected ChatGPT account policy: `{{ANY_SIGNED_IN_PRO|CONFIRMED_SAFE_ACCOUNT_MARKER|ASK_EACH_RUN}}`
+- Confirmed safe account marker / confirmed at: `{{USER_APPROVED_DISPLAY_LABEL_OR_HASH_OR_NONE}}` / {{ISO_8601_OR_NONE}}
 - Per-conversation Pro selection policy: `verify-declared-model-and-Pro-5-of-5-before-every-submission; no-badge-collapsed-button-High-default-or-fallback-inference`
 - First baseline completed at: {{ISO_8601_OR_PENDING}}
 - Last invocation-gate ID/path: `{{PREFLIGHT_ID_OR_NONE}}` / `{{PATH_OR_NONE}}`
@@ -76,6 +78,8 @@ Treat paths as untrusted hints until checked in the current invocation.
 
 - Dashboard policy: `{{DISABLED|ON_DEMAND|ENABLED}}`
 - Dedicated dashboard root: `{{PATH_OR_PENDING_OR_NOT_APPLICABLE}}`
+- Dashboard initialized for any run: `{{yes|no}}`
+- Per-run initialization record: `{{RUN_ID_AND_ISO_8601_OR_NONE}}`
 - Current-run automatic startup authorized: `{{yes|no}}`
 - Bind address: `127.0.0.1`
 - Preferred port policy: `{{AUTO_FREE_LOOPBACK_PORT|FIXED_PORT_WITH_HEALTH_CHECK}}`

@@ -4,7 +4,7 @@
 
 - [Conversation selection](#conversation-selection)
 - [Work allocation profiles](#work-allocation-profiles)
-- [Launch-readiness gate](#launch-readiness-gate)
+- [Conversation acquisition and launch-readiness gates](#conversation-acquisition-and-launch-readiness-gates)
 - [ChatGPT Pro submission gate](#chatgpt-pro-submission-gate)
 - [Lane charter](#lane-charter)
 - [Parallelism rules](#parallelism-rules)
@@ -63,15 +63,24 @@ The user may change allocation at any time. When changing it mid-run:
 - keep Codex's fixed recovery, verification, integration, and acceptance duties;
 - update the run state and next compact status card.
 
-## Launch-readiness gate
+## Conversation acquisition and launch-readiness gates
 
-Before creating or reusing a browser conversation, bind each lane action to the
-capability report. Every required prerequisite must be `AVAILABLE_VERIFIED`,
-covered by an explicitly accepted manual/degraded route, or made unnecessary by
-the final lane design. A setup state such as `OFFERED`, `AWAITING_APPROVAL`,
-`IN_PROGRESS`, `MANUAL_ACTION_REQUIRED`, or command-level “success” is not
+Separate acquiring a target from sending work. A fresh blank ChatGPT
+conversation may be created after C03, C05-C10, current authorization, and the
+selected browser route are verified; creating it is what makes exact-target
+C26 evidence possible. Do not type, upload, or submit during acquisition. Reuse
+requires the exact durable conversation identity, current semantic match, and
+no conflicting run/lane owner.
+
+Before typing, uploading, or submitting, bind that exact lane action to the
+capability report. Every action-required prerequisite must be
+`AVAILABLE_VERIFIED`, covered by an explicitly accepted manual/degraded route,
+or made unnecessary by the final lane design. A setup state such as `OFFERED`,
+`AWAITING_APPROVAL`, `IN_PROGRESS`, `MANUAL_ACTION_REQUIRED`, or command-level
+“success” is not
 launch readiness. After setup, require the full preflight result and update the
-selected route before submission.
+selected route before submission. C25 and C26 remain hard pre-submit gates; a
+successfully created conversation is not permission or proof to send.
 
 Do not add desktop control merely because it is available. If a missing
 optional capability affects convenience only, record the limitation and use

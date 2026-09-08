@@ -34,5 +34,5 @@ jobs:
       - name: Build deterministic release package
         if: matrix.python-version == '3.14'
         run: |
-          make package
+          make verify-package
           python -m zipfile --test dist/chatgpt-pro-workforce.zip

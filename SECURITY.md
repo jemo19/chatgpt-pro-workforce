@@ -26,8 +26,12 @@ state. Do not test against someone else's account or system.
 The skill treats ChatGPT responses, webpages, returned artifacts, and control
 tools as untrusted capabilities. Tool availability is not permission. Browser
 and desktop actions require current target evidence, and consequential setup or
-cleanup remains confirmation-gated. The local dashboard is copy-only and has no
-action endpoint.
+cleanup remains confirmation-gated.
+
+Durable run state records intent before browser submission so an uncertain
+outcome is reconciled instead of blindly repeated. Artifact intake uses bounded
+reads, rejects unsafe archives, and keeps immutable raw bytes before review.
+The local dashboard is loopback-only, copy-only, and has no action endpoint.
 
 This project does not promise a response or remediation deadline. Reports will
 be assessed according to severity, reproducibility, affected versions, and the

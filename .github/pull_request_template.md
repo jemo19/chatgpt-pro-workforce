@@ -9,11 +9,14 @@ Describe the user-visible outcome and why the change belongs in this skill.
 - [ ] No credentials, private prompts, browser state, local paths, or customer data are included.
 - [ ] Live and simulated evidence are labeled accurately.
 - [ ] The installable skill contains no authoring-only files.
+- [ ] New state or browser-submission paths preserve write-ahead intent and duplicate reconciliation.
+- [ ] New artifact paths preserve immutable raw input and bounded validation.
 
 ## Validation
 
 - [ ] `make check`
 - [ ] `make validate-authoritative` when the current validator is available
+- [ ] `make verify-package`
 - [ ] Relevant live or deterministic behavior check described below
 
 Evidence and checks:
