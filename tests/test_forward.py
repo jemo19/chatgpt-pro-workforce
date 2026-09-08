@@ -6,8 +6,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 import hashlib
+import json
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import warnings
@@ -107,6 +109,19 @@ def desktop_outcome(transport_success: bool, postcondition: bool | None) -> str:
     return "OUTCOME_UNKNOWN" if transport_success else "NOT_ATTEMPTED"
 
 
+def run_helper(script: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-I", "-B", str(script), *arguments],
+        cwd=ROOT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+
 def pro_gate(entitlement: bool, observation: str, postcondition: bool) -> str:
     if not entitlement:
         return "BLOCKED"
@@ -169,7 +184,18 @@ def main() -> int:
         record("FT11", "simulated 60+ minute active run with transient banner", "wait without interruption", f"{state}:{','.join(actions)}", monitor_ok)
         recovery = ("native attachment", "browser URL", "authorized desktop dialog", "ZIP", "bounded Base64")
         observed = recovery[1:]
-        record("FT12", "preferred attachment download fails", "browser URL then bounded fallbacks", " > ".join(observed), observed == recovery[1:] and has("SKILL.md", "authorized desktop handling of a native dialog"))
+        record(
+            "FT12",
+            "preferred attachment download fails",
+            "browser URL then bounded fallbacks",
+            " > ".join(observed),
+            observed == recovery[1:]
+            and has(
+                "references/monitoring-and-recovery.md",
+                "authorized desktop handling of a native dialog",
+                "bounded Base64 transport",
+            ),
+        )
         mechanical, semantic = True, False
         observed = "REJECTED_SEMANTIC" if mechanical and not semantic else "ACCEPTED"
         record("FT13", "mechanical pass semantic fail", "REJECTED_SEMANTIC", observed, observed == "REJECTED_SEMANTIC" and has("references/evidence-and-verification.md", "REJECTED_SEMANTIC"))
@@ -215,10 +241,43 @@ def main() -> int:
         capability, action = "NOT_AUTHORIZED", "NOT_ATTEMPTED"
         record("FT22", "tool available but action unauthorized", "NOT_AUTHORIZED/NOT_ATTEMPTED", f"{capability}/{action}", capability == "NOT_AUTHORIZED" and action == "NOT_ATTEMPTED")
 
-        durable = {("lane-01", "prompt-hash", "conversation-01"): "ACTIVE"}
-        key = ("lane-01", "prompt-hash", "conversation-01")
-        observed = "SUPPRESSED" if key in durable else "SUBMITTED"
-        record("FT23", "duplicate worker submission", "SUPPRESSED", observed, observed == "SUPPRESSED" and has("SKILL.md", "Suppress an identical active or completed submission"))
+        state_root = temp_path / "run-state"
+        run_state_helper = ROOT / "scripts/run_state.py"
+        state_init = run_helper(
+            run_state_helper,
+            "init", "--root", str(state_root), "--run-id", "RUN-TEST",
+            "--session-id", "SESSION-TEST",
+        )
+        first_send = run_helper(
+            run_state_helper,
+            "send-intent", "--root", str(state_root), "--run-id", "RUN-TEST",
+            "--session-id", "SESSION-TEST", "--expected-revision", "1",
+            "--logical-work-id", "WORK-1", "--lane-id", "lane-01",
+            "--conversation-id", "conversation-01", "--prompt-hash", "a" * 64,
+        )
+        duplicate_send = run_helper(
+            run_state_helper,
+            "send-intent", "--root", str(state_root), "--run-id", "RUN-TEST",
+            "--session-id", "SESSION-TEST", "--expected-revision", "2",
+            "--logical-work-id", "WORK-1", "--lane-id", "lane-01",
+            "--conversation-id", "conversation-01", "--prompt-hash", "a" * 64,
+        )
+        first_result = json.loads(first_send.stdout) if first_send.returncode == 0 else {}
+        duplicate_result = json.loads(duplicate_send.stdout) if duplicate_send.returncode == 0 else {}
+        observed = str(duplicate_result.get("action", "ERROR"))
+        record(
+            "FT23",
+            "duplicate worker submission",
+            "SUPPRESSED",
+            observed,
+            state_init.returncode == 0
+            and first_result.get("action") == "SEND_INTENT_COMMITTED"
+            and first_result.get("browser_input_permitted") is True
+            and observed == "SUPPRESSED"
+            and duplicate_result.get("automatic_resend_allowed") is False
+            and duplicate_result.get("revision") == 2
+            and has("SKILL.md", "Suppress an identical active or completed submission"),
+        )
 
         archives = {
             "safe": [("packet/result.txt", b"ok", stat.S_IFREG | 0o644)],
@@ -229,10 +288,12 @@ def main() -> int:
             "duplicate": [("same.txt", b"a", stat.S_IFREG | 0o644), ("same.txt", b"b", stat.S_IFREG | 0o644)],
         }
         decisions = {}
+        artifact_helper = ROOT / "scripts/artifact_store.py"
         for name, members in archives.items():
             archive_path = temp_path / f"{name}.zip"
             create_zip(archive_path, members)
-            decisions[name] = validate_zip(archive_path)
+            inspected = run_helper(artifact_helper, "inspect-zip", "--source", str(archive_path))
+            decisions[name] = "ACCEPTED" if inspected.returncode == 0 else "REJECTED"
         zip_ok = decisions["safe"] == "ACCEPTED" and all(decisions[name] == "REJECTED" for name in decisions if name != "safe")
         record("FT24", "unsafe recovered ZIP", "safe accepted; five unsafe classes rejected", repr(decisions), zip_ok)
 
@@ -289,6 +350,16 @@ def main() -> int:
         record("FT42", "High does not count as maximum Pro", "SELECT_THEN_REVERIFY", observed, observed == "SELECT_THEN_REVERIFY" and has("references/capability-preflight.md", "`High` is always", "Pro, 5 of 5"))
 
     cleaned = bool(temp_path) and not temp_path.exists()
+    case_ids = [result.case_id for result in RESULTS]
+    if len(case_ids) != len(set(case_ids)):
+        duplicates = sorted({case_id for case_id in case_ids if case_ids.count(case_id) > 1})
+        record(
+            "META-UNIQUE",
+            "forward test identifiers are unique",
+            "no duplicate case IDs",
+            f"duplicates={duplicates}",
+            False,
+        )
     failures = [result for result in RESULTS if not result.passed]
     for result in RESULTS:
         classification = "SIMULATED_PASS" if result.passed else "SIMULATED_FAIL"

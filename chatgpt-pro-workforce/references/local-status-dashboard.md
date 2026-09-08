@@ -30,6 +30,11 @@ Store one profile policy:
 - `ENABLED` — maintain a sanitized snapshot for each active run and start or
   reconnect its loopback server when the current runtime permits.
 
+Also store `dashboard_initialized_at` per run. `ON_DEMAND` with no timestamp
+means no dashboard directory, snapshot, or process has ever been requested for
+that run. An existing initialized on-demand dashboard may be refreshed on a
+later invocation; the policy alone must not create its first files.
+
 Ask for or recommend a dedicated dashboard root. On Linux, an appropriate
 example is a `chatgpt-pro-workforce/dashboard` subdirectory under the user's
 local state directory. Do not use the home directory itself, a project root,
@@ -47,31 +52,35 @@ On every skill invocation:
 
 1. perform the invocation readiness gate;
 2. load the matching durable run state without exposing unrelated runs;
-3. if dashboard policy is not `DISABLED`, build a fresh public snapshot from
+3. decide whether the dashboard is eligible: `ENABLED`, an explicit dashboard
+   intent, or `ON_DEMAND` with a recorded initialization for this exact run;
+   otherwise create nothing and continue with chat status;
+4. for an eligible dashboard, build a fresh public snapshot from
    the allowlisted fields in
    [status data template](../assets/status-data-template.json);
-4. atomically replace that run's `status.json` with
+5. atomically replace that run's `status.json` with
    [status dashboard helper](../scripts/status_dashboard.py);
-5. if the policy or user intent calls for a link, verify the exact loopback
+6. if the policy or user intent calls for a link, verify the exact loopback
    server, requested run page, and sanitized snapshot with the helper's
    `verify` command;
-6. when the verified Chrome/browser route is available, open the exact run URL
+7. when the verified Chrome/browser route is available, open the exact run URL
    and semantically confirm the expected run ID, title, freshness, and visible
    connection state before presenting it as browser-verified;
-7. show the URL only after local verification succeeds; otherwise show the text
+8. show the URL only after local verification succeeds; otherwise show the text
    detailed-status intent and record the dashboard as unavailable or stale.
 
-Also refresh the snapshot after a material transition while the active Codex
+Also refresh an eligible snapshot after a material transition while the active Codex
 turn continues: lane submission/terminal change, artifact recovery, gate result,
 scope change, pause/resume/limit, readiness delta, blocker, or user decision.
 Do not write an unchanged snapshot merely to create the appearance of activity.
 
 ## Public status schema
 
-The JSON snapshot contains only these top-level keys:
+The public snapshot uses schema version `2` and contains only these top-level
+keys:
 
 ```text
-schema_version run progress lanes readiness artifacts gates decisions
+schema_version revision run progress lanes readiness artifacts gates decisions
 storage notes alerts
 ```
 
@@ -86,6 +95,13 @@ and next action. They must not include:
 - unrelated tabs, windows, history, files, or applications;
 - private artifact contents or source passages;
 - shell transcripts, environment dumps, or secrets-bearing errors.
+
+`revision` is a non-negative integer within the JavaScript safe-integer range.
+Increase it for every changed snapshot. The helper rejects a lower revision
+and rejects different bytes at the same revision; it accepts an identical
+same-revision update as an idempotent no-op. The page retains the last good
+snapshot and refuses an older or same-revision conflicting response, so never
+reuse a revision for new content.
 
 Use these exact state vocabularies; do not pass free-form state strings:
 
@@ -132,9 +148,27 @@ perform the equivalent of:
 <python-path> scripts/status_dashboard.py init --root <dedicated-dashboard-root> --run-id <RUN_ID> --template assets/status-dashboard-template.html
 <python-path> scripts/status_dashboard.py update --root <dedicated-dashboard-root> --run-id <RUN_ID> --status-file <sanitized-status-json>
 <python-path> scripts/status_dashboard.py serve --root <dedicated-dashboard-root> --bind 127.0.0.1 --port <PORT>
-<python-path> scripts/status_dashboard.py health --host 127.0.0.1 --port <PORT> --expected-root <dedicated-dashboard-root>
-<python-path> scripts/status_dashboard.py verify --host 127.0.0.1 --port <PORT> --expected-root <dedicated-dashboard-root> --run-id <RUN_ID>
+<python-path> scripts/status_dashboard.py health --host 127.0.0.1 --port <PORT> --expected-root <dedicated-dashboard-root> --expected-instance-id <INSTANCE_ID>
+<python-path> scripts/status_dashboard.py verify --host 127.0.0.1 --port <PORT> --expected-root <dedicated-dashboard-root> --expected-instance-id <INSTANCE_ID> --run-id <RUN_ID>
 ```
+
+Capture both startup lines from the managed `serve` process. The first is the
+actual base URL, including the selected port when `--port 0` is used; the second
+is `INSTANCE_ID=<32-lowercase-hex-characters>`. Bind both the URL/port and that
+instance ID into durable dashboard process evidence. Supplying the recorded
+instance ID to `health` and `verify` prevents a different process serving the
+same root or port from being mistaken for this managed instance.
+
+When the installed HTML shell changes, update it without fabricating a status
+transition:
+
+```text
+<python-path> scripts/status_dashboard.py refresh-shell --root <dedicated-dashboard-root> --run-id <RUN_ID> --template assets/status-dashboard-template.html
+```
+
+`refresh-shell` atomically replaces only `index.html`; it does not change
+`status.json` or its revision. Run the full instance-bound `verify` command
+afterward before showing the link.
 
 On Linux, the dedicated root, `runs`, and run directory must be owned by the
 current user with mode `0700`; served `index.html` and `status.json` must be
@@ -148,9 +182,9 @@ available, use the chat detail view and record the dashboard as unavailable on
 those platforms.
 
 Run `serve` in a host-managed execution session when available. Record the
-dashboard root, port, managed process/session identity, health time, and last
-snapshot time. Never daemonize through a system service or claim the process
-will survive the current host/session.
+dashboard root, port, emitted instance ID, managed process/session identity,
+health time, and last snapshot time. Never daemonize through a system service
+or claim the process will survive the current host/session.
 
 Treat `health` as server-identity diagnosis, not sufficient proof that one run
 page works. `verify` must confirm the server identity, exact HTML shell,
@@ -253,7 +287,9 @@ browser-visible loading fails, enter `DASHBOARD_FAULT_DIAGNOSTIC`:
    problem;
 2. verify the recorded root, port, managed process/session identity, and
    loopback bind; never trust a stale PID by itself;
-3. run `verify` and classify exactly one primary fault:
+3. compare the recorded instance ID with the one returned by `health`, then run
+   the exact instance-bound `verify` command and classify exactly one primary
+   fault:
    `SERVER_UNREACHABLE`, `SERVER_IDENTITY_MISMATCH`, `RUN_PAGE_UNAVAILABLE`,
    `RUN_PAGE_INVALID`, `STATUS_SNAPSHOT_UNAVAILABLE`, or
    `STATUS_SNAPSHOT_INVALID`;

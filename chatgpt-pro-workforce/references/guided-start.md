@@ -290,6 +290,18 @@ layers are required by this run and which merely complete the recommended
 support stack. The user should not need to remember tool names, but `tell me
 more` and the capability report must show them exactly.
 
+On first use, if safe account-level UI exposes more than entitlement, ask how
+strictly to bind future runs. Show every valid choice:
+
+```text
+A. Confirm this account — remember only a user-approved safe display marker and require it to match before sending. (Recommended on shared or multi-account browsers)
+B. Any signed-in Pro account — verify Pro and maximum power, but do not bind to one display marker. (Recommended on a private single-account browser)
+C. Ask each run — confirm the safe visible account marker before the first submission of each run.
+```
+
+Never retain an email address, account ID, billing detail, cookie, or token.
+An account choice does not replace the exact-conversation `Pro, 5 of 5` gate.
+
 Prefer browser semantics. Propose desktop control only for a named action the
 browser cannot perform. Tell the user whether that layer is verified, untested,
 degraded, manual, or unavailable; do not hide a required manual handoff. Do not

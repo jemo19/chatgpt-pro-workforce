@@ -9,8 +9,10 @@ from pathlib import Path
 import hashlib
 import json
 import re
+import subprocess
 import sys
 import tempfile
+import zipfile
 
 
 ROOT = Path(sys.argv[1]).resolve()
@@ -301,6 +303,20 @@ def control_intent(prompt: str) -> str:
     return "GUIDED" if lower.strip() == "$chatgpt-pro-workforce" else "TASK"
 
 
+def run_helper(script: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    """Run an installed helper without inheriting Python startup customizations."""
+    return subprocess.run(
+        [sys.executable, "-I", "-B", str(script), *arguments],
+        cwd=ROOT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+
 def main() -> int:
     progress_text = (ROOT / "references/progress-and-controls.md").read_text()
     card_text = (ROOT / "assets/progress-card-template.md").read_text()
@@ -321,6 +337,7 @@ def main() -> int:
     platform_text = (ROOT / "references/platform-control-stacks.md").read_text()
     install_text = (ROOT / "references/installation-and-uninstall.md").read_text()
     orchestration_text = (ROOT / "references/orchestration.md").read_text()
+    state_handoff_text = (ROOT / "references/state-and-handoff.md").read_text()
 
     observed = bar(3, 10)
     record("PC01", "finite registered ratio", "███░░░░░░░ 3/10", observed, observed == "███░░░░░░░ 3/10")
@@ -710,14 +727,14 @@ def main() -> int:
         "A. Repair/setup plan",
         "D. Stop here",
     )
-    record("PC90", "guided preflight enumerates complete choices", "lettered purpose/tradeoff menus", ",".join(term for term in menu_markers if term in guided_text), all(term in guided_text for term in menu_markers))
+    record("PC108", "guided preflight enumerates complete choices", "lettered purpose/tradeoff menus", ",".join(term for term in menu_markers if term in guided_text), all(term in guided_text for term in menu_markers))
     explorer_text = (ROOT / "references/research-explorer.md").read_text()
     explorer_profile = ("ALWAYS", "ASK_AT_COMPLETION", "DISABLED")
     explorer_menu = (
         "A. Always build it", "B. Ask at the end", "C. Do not build it",
     )
     record(
-        "PC91",
+        "PC109",
         "guided setup covers completed research explorer",
         "all policies, complete menu, accepted-data and exact-output boundary",
         ",".join(term for term in (*explorer_profile, *explorer_menu) if term in (profile_text + guided_text + explorer_text)),
@@ -726,7 +743,139 @@ def main() -> int:
         and "accepted, sanitized" in explorer_text
         and "exact configured" in explorer_text,
     )
+    backend_routes = {
+        "linux_verified": "LINUX_HELPER",
+        "macos": "PORTABLE_IMMUTABLE_REVISIONS",
+        "windows": "PORTABLE_IMMUTABLE_REVISIONS",
+        "linux_helper_failed": "PORTABLE_IMMUTABLE_REVISIONS",
+        "ownership_unverified": "BLOCK_AUTOMATED_SEND",
+    }
+    record(
+        "PC110",
+        "durable state selects a verified backend on every platform",
+        "Linux helper or portable immutable revisions; unverified ownership blocks sends",
+        json.dumps(backend_routes, sort_keys=True),
+        all(
+            term in state_handoff_text
+            for term in (
+                "LINUX_HELPER",
+                "PORTABLE_IMMUTABLE_REVISIONS",
+                "Windows",
+                "macOS",
+                "freeze automated browser/desktop input",
+                "SEND_INTENT",
+            )
+        )
+        and "permit no automated send" in skill_text,
+    )
 
+    run_state_helper = ROOT / "scripts/run_state.py"
+    artifact_helper = ROOT / "scripts/artifact_store.py"
+    with tempfile.TemporaryDirectory(prefix="workforce-helper-integration-") as temp_name:
+        helper_root = Path(temp_name)
+        state_root = helper_root / "state"
+        initialized = run_helper(
+            run_state_helper,
+            "init", "--root", str(state_root), "--run-id", "RUN-TEST",
+            "--session-id", "SESSION-TEST",
+        )
+        initialized_data = json.loads(initialized.stdout) if initialized.returncode == 0 else {}
+        first_intent = run_helper(
+            run_state_helper,
+            "send-intent", "--root", str(state_root), "--run-id", "RUN-TEST",
+            "--session-id", "SESSION-TEST", "--expected-revision", "1",
+            "--logical-work-id", "WORK-1", "--lane-id", "L01",
+            "--conversation-id", "CONV-1", "--prompt-hash", "a" * 64,
+        )
+        first_data = json.loads(first_intent.stdout) if first_intent.returncode == 0 else {}
+        duplicate = run_helper(
+            run_state_helper,
+            "send-intent", "--root", str(state_root), "--run-id", "RUN-TEST",
+            "--session-id", "SESSION-TEST", "--expected-revision", "2",
+            "--logical-work-id", "WORK-1", "--lane-id", "L01",
+            "--conversation-id", "CONV-1", "--prompt-hash", "a" * 64,
+        )
+        duplicate_data = json.loads(duplicate.stdout) if duplicate.returncode == 0 else {}
+        state_ok = (
+            initialized_data.get("run", {}).get("revision") == 1
+            and first_data.get("action") == "SEND_INTENT_COMMITTED"
+            and first_data.get("browser_input_permitted") is True
+            and duplicate_data.get("action") == "SUPPRESSED"
+            and duplicate_data.get("automatic_resend_allowed") is False
+            and duplicate_data.get("revision") == 2
+        )
+        record(
+            "PC106",
+            "durable send intent suppresses an unresolved duplicate",
+            "commit revision 2, permit first input, suppress retry without revision drift",
+            json.dumps(
+                {
+                    "init_exit": initialized.returncode,
+                    "first": first_data.get("action"),
+                    "duplicate": duplicate_data.get("action"),
+                    "revision": duplicate_data.get("revision"),
+                },
+                sort_keys=True,
+            ),
+            state_ok,
+        )
+
+        store_root = helper_root / "artifacts"
+        source = helper_root / "result.bin"
+        source.write_bytes(b"accepted fixture bytes")
+        store_init = run_helper(
+            artifact_helper,
+            "init", "--run-root", str(store_root), "--run-id", "RUN-TEST",
+        )
+        ingested = run_helper(
+            artifact_helper,
+            "ingest-file", "--run-root", str(store_root), "--run-id", "RUN-TEST",
+            "--artifact-id", "ART-1", "--source-name", "result.bin",
+            "--source-kind", "LOCAL_FIXTURE", "--lane-id", "L01",
+            "--conversation-id", "CONV-1", "--source", str(source),
+        )
+        ingest_data = json.loads(ingested.stdout) if ingested.returncode == 0 else {}
+        stored_relative = ingest_data.get("raw", {}).get("stored_path", "")
+        stored_path = store_root / stored_relative if stored_relative else store_root / "missing"
+        hostile = helper_root / "traversal.zip"
+        with zipfile.ZipFile(hostile, "w") as archive:
+            archive.writestr("../escape.txt", b"must not escape")
+        rejected = run_helper(artifact_helper, "inspect-zip", "--source", str(hostile))
+        artifact_ok = (
+            store_init.returncode == 0
+            and ingested.returncode == 0
+            and ingest_data.get("source", {}).get("sha256") == hashlib.sha256(source.read_bytes()).hexdigest()
+            and stored_path.is_file()
+            and stored_path.read_bytes() == source.read_bytes()
+            and rejected.returncode != 0
+            and not (helper_root / "escape.txt").exists()
+        )
+        record(
+            "PC107",
+            "artifact intake stores immutable content and rejects traversal",
+            "hash-addressed raw bytes retained; traversal ZIP rejected without extraction",
+            json.dumps(
+                {
+                    "init_exit": store_init.returncode,
+                    "ingest_exit": ingested.returncode,
+                    "stored": stored_relative,
+                    "zip_exit": rejected.returncode,
+                },
+                sort_keys=True,
+            ),
+            artifact_ok,
+        )
+
+    case_ids = [result[0] for result in RESULTS]
+    if len(case_ids) != len(set(case_ids)):
+        duplicates = sorted({case_id for case_id in case_ids if case_ids.count(case_id) > 1})
+        record(
+            "META-UNIQUE",
+            "behavior test identifiers are unique",
+            "no duplicate case IDs",
+            f"duplicates={duplicates}",
+            False,
+        )
     failures = [result for result in RESULTS if result[1] == FAIL]
     for case_id, classification, title, details in RESULTS:
         print(f"{case_id}|{classification}|{title}|{details}")

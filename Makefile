@@ -2,7 +2,10 @@ PYTHON ?= python3
 SKILL_DIR ?= chatgpt-pro-workforce
 SKILL_CREATOR ?= $(HOME)/.codex/skills/.system/skill-creator
 
-.PHONY: check validate validate-authoritative test check-public package
+# Keep validation and packaging from mutating the source tree with bytecode.
+export PYTHONDONTWRITEBYTECODE := 1
+
+.PHONY: check validate validate-authoritative test check-public package verify-package
 
 check: validate test check-public
 
@@ -19,9 +22,15 @@ test:
 	$(PYTHON) tests/test_status_dashboard.py $(SKILL_DIR)
 	$(PYTHON) tests/test_research_explorer.py $(SKILL_DIR)
 	$(PYTHON) tests/test_obsidian_locator.py $(SKILL_DIR)
+	$(PYTHON) tests/test_run_state.py $(SKILL_DIR)
+	$(PYTHON) tests/test_artifact_store.py $(SKILL_DIR)
+	$(PYTHON) tests/test_package_skill.py .
 
 check-public:
 	$(PYTHON) scripts/check_public_tree.py .
 
-package:
+package: check
 	$(PYTHON) scripts/package_skill.py $(SKILL_DIR) --output dist/chatgpt-pro-workforce.zip
+
+verify-package: package
+	$(PYTHON) scripts/package_skill.py --verify-only --output dist/chatgpt-pro-workforce.zip

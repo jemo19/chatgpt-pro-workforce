@@ -28,6 +28,18 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 The standard destination is `${CODEX_HOME:-$HOME/.codex}/skills/chatgpt-pro-workforce`.
 An existing destination is not silently overwritten.
 
+Some Codex setups discover shared user skills from `$HOME/.agents/skills`.
+When that is the active root, install there explicitly:
+
+```bash
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" \
+  --repo jemo19/chatgpt-pro-workforce \
+  --path chatgpt-pro-workforce \
+  --dest "$HOME/.agents/skills"
+```
+
+Do not keep the same skill name active in both roots.
+
 ## Manual installation
 
 Manual installation is a fallback. Clone the repository, validate the nested
@@ -41,8 +53,9 @@ python3 tests/validate_skill.py chatgpt-pro-workforce
 ```
 
 Determine the active user skill root from current Codex configuration before
-copying. Do not assume that a path used by another machine is active locally.
-Keep only one discoverable copy of the same skill name.
+copying. The usual locations are `$HOME/.codex/skills` and
+`$HOME/.agents/skills`, but the current configuration decides. Keep only one
+discoverable copy of the same skill name.
 
 ## Verify
 
@@ -63,8 +76,8 @@ outside the active installation, preserve the current installation as a
 timestamped backup outside discoverable skill roots, then replace the directory
 atomically where supported. Start a new session and repeat the readiness smoke.
 
-Do not merge new files into an old installation: stale references can remain
-discoverable and invalidate the clean runtime inventory.
+Do not merge new files into an old installation. Stage and validate the complete
+replacement first so stale references cannot remain in the active copy.
 
 ## Uninstall
 

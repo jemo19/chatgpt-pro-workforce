@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -50,7 +51,8 @@ def run(*args: str, expected: int = 0) -> subprocess.CompletedProcess[str]:
 
 def payload(title: str, updated_at: str) -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "revision": 1,
         "run": {
             "id": "RUN-DASHBOARD-TEST",
             "title": title,
@@ -115,6 +117,17 @@ def set_enum_field(document: dict[str, object], field: str, value: str) -> None:
         document[group][0][key] = value
     else:
         document[group][key] = value
+    usage_by_profile = {
+        "PRO_HEAVY": "LOWEST",
+        "BALANCED": "MODERATE",
+        "CODEX_HEAVY": "HIGH",
+        "LOCAL_ONLY": "CODEX_ONLY",
+    }
+    if field == "run.allocation_profile" and value in usage_by_profile:
+        document["run"]["codex_usage_band"] = usage_by_profile[value]
+    elif field == "run.codex_usage_band" and value in usage_by_profile.values():
+        profile_by_usage = {usage: profile for profile, usage in usage_by_profile.items()}
+        document["run"]["allocation_profile"] = profile_by_usage[value]
 
 
 def stat_mode(path: Path) -> int:
@@ -142,6 +155,32 @@ def main() -> int:
         run_dir = root / "runs" / "RUN-DASHBOARD-TEST"
         stored = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
         record("DB02", stored["run"]["title"] == "Initial fixture run" and (run_dir / "index.html").is_file(), "initialized strict run files")
+
+        status_before_shell_refresh = hashlib.sha256(
+            (run_dir / "status.json").read_bytes()
+        ).hexdigest()
+        refreshed_template = temp / "refreshed-dashboard.html"
+        refreshed_template.write_text(
+            TEMPLATE.read_text(encoding="utf-8").replace(
+                "</body>", '<span id="shell-refresh-canary"></span></body>'
+            ),
+            encoding="utf-8",
+        )
+        run(
+            "refresh-shell", "--root", str(root),
+            "--run-id", "RUN-DASHBOARD-TEST", "--template", str(refreshed_template),
+        )
+        record(
+            "DB27",
+            b"shell-refresh-canary" in (run_dir / "index.html").read_bytes()
+            and hashlib.sha256((run_dir / "status.json").read_bytes()).hexdigest()
+            == status_before_shell_refresh,
+            "existing run shell refreshes atomically without changing status",
+        )
+        run(
+            "refresh-shell", "--root", str(root),
+            "--run-id", "RUN-DASHBOARD-TEST", "--template", str(TEMPLATE),
+        )
 
         private_modes = (
             stat_mode(root) == 0o700
@@ -194,7 +233,7 @@ def main() -> int:
         helper_module = load_helper_module()
         enum_payload = payload("Enum fixture", "2026-08-31T02:01:45Z")
         enum_payload["lanes"] = [{"id": "L01", "name": "Lane", "state": "PLANNED", "owner": "fixture", "summary": "bounded", "last_observed_at": "2026-08-31T02:01:45Z", "next_action": "wait"}]
-        enum_payload["artifacts"] = [{"id": "A01", "name": "artifact.bin", "state": "EXPECTED", "size_bytes": 0, "sha256": ""}]
+        enum_payload["artifacts"] = [{"id": "A01", "name": "artifact.bin", "state": "EXPECTED", "size_bytes": 0, "sha256": "0" * 64}]
         enum_payload["gates"] = [{"id": "G01", "label": "Gate", "kind": "MECHANICAL", "state": "NOT_RUN", "detail": "pending"}]
         enum_payload["decisions"] = [{"id": "D01", "label": "Decision", "state": "PENDING", "detail": "pending"}]
         enum_payload["alerts"] = [{"level": "info", "title": "Notice", "detail": "safe"}]
@@ -250,6 +289,180 @@ def main() -> int:
             f"exact enum tokens accepted={accepted_tokens}; foreign/lookalike rejects={rejected_foreign}",
         )
 
+        strict_candidates: list[tuple[str, dict[str, object]]] = []
+        wrong_version = payload("Wrong version", "2026-08-31T02:01:46Z")
+        wrong_version["schema_version"] = 1
+        strict_candidates.append(("version", wrong_version))
+        string_version = payload("String version", "2026-08-31T02:01:46Z")
+        string_version["schema_version"] = "2"
+        strict_candidates.append(("string-version", string_version))
+        missing_top = payload("Missing top field", "2026-08-31T02:01:46Z")
+        del missing_top["alerts"]
+        strict_candidates.append(("missing-top", missing_top))
+        missing_run = payload("Missing run field", "2026-08-31T02:01:46Z")
+        del missing_run["run"]["next_action"]
+        strict_candidates.append(("missing-run", missing_run))
+        bad_time = payload("Naive timestamp", "2026-08-31T02:01:46")
+        strict_candidates.append(("naive-time", bad_time))
+        compact_time = payload("Compact timestamp", "20260831T020146Z")
+        strict_candidates.append(("compact-time", compact_time))
+        seconds_offset = payload("Offset seconds", "2026-08-31T02:01:46+00:00:30")
+        strict_candidates.append(("offset-seconds", seconds_offset))
+        mismatched_usage = payload("Usage mismatch", "2026-08-31T02:01:46Z")
+        mismatched_usage["run"]["codex_usage_band"] = "HIGH"
+        strict_candidates.append(("usage-mismatch", mismatched_usage))
+        duplicate_ids = payload("Duplicate IDs", "2026-08-31T02:01:46Z")
+        duplicate_ids["progress"].append(deepcopy(duplicate_ids["progress"][0]))
+        strict_candidates.append(("duplicate-ids", duplicate_ids))
+        strict_rejected = []
+        for name, candidate in strict_candidates:
+            try:
+                helper_module._validate_status(candidate, "RUN-DASHBOARD-TEST")
+            except helper_module.DashboardError:
+                strict_rejected.append(name)
+        record(
+            "DB25",
+            strict_rejected == [name for name, _candidate in strict_candidates],
+            f"strict schema/timestamp/identity rejects={strict_rejected}",
+        )
+
+        default_status = helper_module._default_status("RUN-DASHBOARD-TEST")
+        default_sanitized = helper_module._validate_status(
+            default_status, "RUN-DASHBOARD-TEST"
+        )
+        record(
+            "DB26",
+            default_sanitized["run"]["freshness"] == "UNKNOWN"
+            and default_sanitized["run"]["updated_at"] == "1970-01-01T00:00:00Z"
+            and default_sanitized["revision"] == 0
+            and set(default_sanitized) == helper_module.TOP_FIELDS,
+            "new dashboard state is complete and truthfully UNKNOWN, never CURRENT",
+        )
+
+        unchanged_revision = payload("Changed without revision", "2026-08-31T02:01:51Z")
+        status_file.write_text(json.dumps(unchanged_revision), encoding="utf-8")
+        status_file.chmod(0o600)
+        revision_rejected = run(
+            "update", "--root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+            "--status-file", str(status_file), expected=2,
+        )
+        record(
+            "DB28",
+            "revision must increase" in revision_rejected.stderr,
+            "same revision with different bytes is rejected before replacement",
+        )
+
+        # Hold the first publisher inside its atomic write. A second publisher
+        # must remain behind the process lock, then observe the newer revision.
+        original_atomic_write = helper_module._atomic_write
+        first_publisher_entered = threading.Event()
+        release_first_publisher = threading.Event()
+        publication_count = 0
+        publication_count_lock = threading.Lock()
+
+        def delayed_atomic_write(path: Path, content: bytes, mode: int = 0o600) -> None:
+            nonlocal publication_count
+            with publication_count_lock:
+                publication_count += 1
+                ordinal = publication_count
+            if ordinal == 1:
+                first_publisher_entered.set()
+                if not release_first_publisher.wait(timeout=2):
+                    raise AssertionError("timed out releasing first dashboard publisher")
+            original_atomic_write(path, content, mode)
+
+        helper_module._atomic_write = delayed_atomic_write
+        concurrent_errors: list[str] = []
+
+        def publish_revision(revision: int) -> None:
+            candidate = payload(
+                f"Concurrent revision {revision}",
+                f"2026-08-31T02:01:{50 + revision:02d}Z",
+            )
+            candidate["revision"] = revision
+            try:
+                helper_module._write_status(run_dir, candidate, "RUN-DASHBOARD-TEST")
+            except Exception as exc:  # noqa: BLE001 - evidence belongs in the test result
+                concurrent_errors.append(f"{type(exc).__name__}: {exc}")
+
+        first_thread = threading.Thread(target=publish_revision, args=(2,))
+        second_thread = threading.Thread(target=publish_revision, args=(3,))
+        try:
+            first_thread.start()
+            entered = first_publisher_entered.wait(timeout=2)
+            second_thread.start()
+            time.sleep(0.1)
+            second_was_serialized = second_thread.is_alive()
+            release_first_publisher.set()
+            first_thread.join(timeout=3)
+            second_thread.join(timeout=3)
+        finally:
+            release_first_publisher.set()
+            helper_module._atomic_write = original_atomic_write
+        concurrent_final = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        record(
+            "DB29",
+            entered
+            and second_was_serialized
+            and not first_thread.is_alive()
+            and not second_thread.is_alive()
+            and not concurrent_errors
+            and concurrent_final["revision"] == 3,
+            f"serialized={second_was_serialized}; final_revision={concurrent_final['revision']}; errors={concurrent_errors}",
+        )
+
+        # A peer that continuously trickles response-header bytes must not
+        # extend the configured total probe deadline.
+        trickle_listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        trickle_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        trickle_listener.bind(("127.0.0.1", 0))
+        trickle_listener.listen(1)
+        trickle_port = trickle_listener.getsockname()[1]
+
+        def trickle_headers() -> None:
+            try:
+                peer, _address = trickle_listener.accept()
+                with peer:
+                    peer.settimeout(1)
+                    try:
+                        peer.recv(4096)
+                    except OSError:
+                        return
+                    response = (
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
+                        b"Content-Type: application/json\r\n\r\n{}"
+                    )
+                    for byte in response:
+                        try:
+                            peer.sendall(bytes([byte]))
+                        except OSError:
+                            break
+                        time.sleep(0.025)
+            finally:
+                trickle_listener.close()
+
+        trickle_thread = threading.Thread(target=trickle_headers, daemon=True)
+        trickle_thread.start()
+        probe_started = time.monotonic()
+        probe_error = ""
+        try:
+            helper_module._probe_endpoint(
+                "127.0.0.1",
+                trickle_port,
+                "/healthz",
+                timeout=0.15,
+                maximum=4096,
+                label="deadline-test",
+            )
+        except helper_module.DashboardError as exc:
+            probe_error = str(exc)
+        probe_elapsed = time.monotonic() - probe_started
+        record(
+            "DB30",
+            "deadline exceeded" in probe_error and probe_elapsed < 0.45,
+            f"elapsed={probe_elapsed:.3f}s; error={probe_error}",
+        )
+
         html_source = TEMPLATE.read_text(encoding="utf-8")
         def js_set(name: str) -> set[str]:
             match = re.search(rf"const {name} = new Set\(\[(.*?)\]\);", html_source, re.S)
@@ -297,12 +510,18 @@ def main() -> int:
             base = server.stdout.readline().strip()
             if not base.startswith("http://127.0.0.1:"):
                 raise AssertionError(f"unexpected server URL: {base!r}")
+            instance_line = server.stdout.readline().strip()
+            if not instance_line.startswith("INSTANCE_ID="):
+                raise AssertionError(f"unexpected instance identity: {instance_line!r}")
+            instance_id = instance_line.split("=", 1)[1]
             port = base.split(":")[-1].rstrip("/")
             health_ok = False
             for _ in range(20):
                 try:
                     check = run(
-                        "health", "--host", "127.0.0.1", "--port", port, "--expected-root", str(root)
+                        "health", "--host", "127.0.0.1", "--port", port,
+                        "--expected-root", str(root),
+                        "--expected-instance-id", instance_id,
                     )
                     health_ok = json.loads(check.stdout)["status"] == "ok"
                     break
@@ -321,6 +540,7 @@ def main() -> int:
             verified = run(
                 "verify", "--host", "127.0.0.1", "--port", port,
                 "--expected-root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+                "--expected-instance-id", instance_id,
             )
             verified_payload = json.loads(verified.stdout)
             record(
@@ -334,6 +554,7 @@ def main() -> int:
             missing_run = run(
                 "verify", "--host", "127.0.0.1", "--port", port,
                 "--expected-root", str(root), "--run-id", "RUN-MISSING",
+                "--expected-instance-id", instance_id,
                 expected=2,
             )
             record("DB22", "run_page_unavailable" in missing_run.stderr, "missing run page classified")
@@ -367,7 +588,9 @@ def main() -> int:
             ]
             record("DB15", raw_host_results == [403, 403, 403, 403, 403], f"malformed/missing Host results={raw_host_results}")
 
-            status_file.write_text(json.dumps(payload("Refreshed fixture run", "2026-08-31T02:02:00Z")), encoding="utf-8")
+            refreshed_payload = payload("Refreshed fixture run", "2026-08-31T02:02:00Z")
+            refreshed_payload["revision"] = 4
+            status_file.write_text(json.dumps(refreshed_payload), encoding="utf-8")
             run("update", "--root", str(root), "--run-id", "RUN-DASHBOARD-TEST", "--status-file", str(status_file))
             status_code, current, headers = fetch(f"{base}runs/RUN-DASHBOARD-TEST/status.json")
             refreshed = json.loads(current)
@@ -394,7 +617,10 @@ def main() -> int:
             wrong_root.mkdir(mode=0o700)
             wrong_root.chmod(0o700)
             wrong_health = run(
-                "health", "--host", "127.0.0.1", "--port", port, "--expected-root", str(wrong_root), expected=2
+                "health", "--host", "127.0.0.1", "--port", port,
+                "--expected-root", str(wrong_root),
+                "--expected-instance-id", instance_id,
+                expected=2,
             )
             record("DB17", "health check failed" in wrong_health.stderr, "wrong-root server identity rejected")
 
@@ -404,6 +630,7 @@ def main() -> int:
             malformed = run(
                 "verify", "--host", "127.0.0.1", "--port", port,
                 "--expected-root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+                "--expected-instance-id", instance_id,
                 expected=2,
             )
             served_status.write_bytes(valid_status_bytes)
@@ -420,6 +647,7 @@ def main() -> int:
         dead_server = run(
             "verify", "--host", "127.0.0.1", "--port", port,
             "--expected-root", str(root), "--run-id", "RUN-DASHBOARD-TEST",
+            "--expected-instance-id", instance_id,
             expected=2,
         )
         record("DB24", "server_unavailable" in dead_server.stderr, "stopped server classified")

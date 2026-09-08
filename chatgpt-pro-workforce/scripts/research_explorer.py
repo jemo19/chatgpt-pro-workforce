@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import html
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -14,14 +15,16 @@ import stat
 import sys
 import tempfile
 from typing import Any, Callable
-from urllib.parse import urlsplit
+from urllib.parse import unquote_to_bytes, urlsplit
 
 
 MAX_DATA_BYTES = 4 * 1024 * 1024
 MAX_TEMPLATE_BYTES = 5 * 1024 * 1024
 MAX_HTML_BYTES = 12 * 1024 * 1024
+MAX_LINKED_ARTIFACT_BYTES = 512 * 1024 * 1024
 MAX_ITEMS = 2048
 MAX_STRING = 32_768
+MAX_SAFE_INTEGER = 2**53 - 1
 DATA_MARKER = "__RESEARCH_EXPLORER_DATA__"
 CONTENT_MARKER = "__RESEARCH_EXPLORER_CONTENT__"
 SHELL_MARKER = 'data-research-explorer="workforce-research-v1"'
@@ -106,7 +109,12 @@ def _string(value: Any, field: str, *, required: bool = False) -> str:
         raise ExplorerError(f"{field} must not be empty")
     if len(value) > MAX_STRING:
         raise ExplorerError(f"{field} is too long")
-    return "".join(c if c in "\n\t" or ord(c) >= 32 else " " for c in value).replace("\x7f", " ")
+    result = "".join(c if c in "\n\t" or ord(c) >= 32 else " " for c in value).replace("\x7f", " ")
+    try:
+        result.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ExplorerError(f"{field} contains an invalid Unicode scalar value") from exc
+    return result
 
 
 def _identifier(value: Any, field: str) -> str:
@@ -126,7 +134,7 @@ def _enum(value: Any, field: str, allowed: set[str]) -> str:
 def _count(value: Any, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ExplorerError(f"{field} must be a non-negative integer")
-    if value > 2**63 - 1:
+    if value > MAX_SAFE_INTEGER:
         raise ExplorerError(f"{field} is too large")
     return value
 
@@ -134,7 +142,9 @@ def _count(value: Any, field: str) -> int:
 def _number(value: Any, field: str) -> int | float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ExplorerError(f"{field} must be a number")
-    if not (-1e100 < float(value) < 1e100):
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ExplorerError(f"{field} must be finite")
+    if not (-10**100 < value < 10**100):
         raise ExplorerError(f"{field} is out of range")
     return value
 
@@ -197,7 +207,10 @@ def _record(
 
 def _safe_source_url(value: Any, field: str) -> str:
     result = _string(value, field, required=True)
-    parsed = urlsplit(result)
+    try:
+        parsed = urlsplit(result)
+    except ValueError as exc:
+        raise ExplorerError(f"{field} must be a valid http or https URL") from exc
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ExplorerError(f"{field} must be an http or https URL")
     if parsed.username is not None or parsed.password is not None:
@@ -209,12 +222,112 @@ def _safe_relative_link(value: Any, field: str) -> str:
     result = _string(value, field)
     if not result:
         return ""
-    if "\\" in result or result.startswith(("/", "//")) or ":" in result.split("/", 1)[0]:
+    if result != result.strip() or any(ord(char) < 32 or ord(char) == 127 for char in result):
         raise ExplorerError(f"{field} must be a safe relative link")
-    path = PurePosixPath(result.split("#", 1)[0].split("?", 1)[0])
-    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+    try:
+        parsed = urlsplit(result)
+    except ValueError as exc:
+        raise ExplorerError(f"{field} must be a safe relative link") from exc
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
+        raise ExplorerError(f"{field} must be a safe relative link")
+    decoded = parsed.path
+    try:
+        for _iteration in range(4):
+            if re.search(r"%(?![0-9A-Fa-f]{2})", decoded):
+                raise ExplorerError(f"{field} has invalid percent encoding")
+            next_decoded = unquote_to_bytes(decoded).decode("utf-8", "strict")
+            if next_decoded == decoded:
+                break
+            decoded = next_decoded
+        else:
+            raise ExplorerError(f"{field} has excessive percent encoding")
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ExplorerError(f"{field} has invalid percent encoding") from exc
+    if (
+        "\\" in decoded
+        or "\x00" in decoded
+        or decoded.startswith(("/", "//"))
+        or ":" in decoded.split("/", 1)[0]
+    ):
+        raise ExplorerError(f"{field} must be a safe relative link")
+    if decoded != parsed.path:
+        raise ExplorerError(f"{field} has percent encoding, which is not permitted")
+    path = PurePosixPath(decoded)
+    if (
+        not decoded
+        or path.is_absolute()
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
         raise ExplorerError(f"{field} must be a safe relative link")
     return result
+
+
+def _reject_symlink_components(path: Path, label: str) -> Path:
+    absolute = Path(os.path.abspath(path.expanduser()))
+    current = Path(absolute.anchor)
+    for component in absolute.parts[1:]:
+        current /= component
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(metadata.st_mode):
+            raise ExplorerError(f"{label} must not traverse a symbolic link")
+    return absolute
+
+
+def _canonical_directory(path: Path, label: str) -> Path:
+    directory = _reject_symlink_components(path, label)
+    try:
+        metadata = directory.lstat()
+    except OSError as exc:
+        raise ExplorerError(f"{label} is unavailable") from exc
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise ExplorerError(f"{label} must be a regular directory")
+    return directory.resolve(strict=True)
+
+
+def _verify_artifact_targets(
+    data: dict[str, Any], raw_root: str | None, document_path: Path
+) -> None:
+    linked = [item for item in data["artifacts"] if item["relative_link"]]
+    if not linked:
+        return
+    if not raw_root:
+        raise ExplorerError("--artifact-root is required when relative artifact links are present")
+    root = _canonical_directory(Path(raw_root), "artifact root")
+    document_parent = _canonical_directory(
+        document_path.expanduser().parent, "research explorer directory"
+    )
+    if root != document_parent:
+        raise ExplorerError(
+            "--artifact-root must exactly match the research explorer's directory"
+        )
+    for item in linked:
+        if not item["sha256"]:
+            raise ExplorerError(f"artifact {item['id']} needs a SHA-256 before it can be linked")
+        candidate = root
+        for component in PurePosixPath(item["relative_link"]).parts:
+            candidate /= component
+            try:
+                metadata = candidate.lstat()
+            except OSError as exc:
+                raise ExplorerError(f"linked artifact {item['id']} is unavailable") from exc
+            if stat.S_ISLNK(metadata.st_mode):
+                raise ExplorerError(f"linked artifact {item['id']} traverses a symbolic link")
+        try:
+            target = candidate.resolve(strict=True)
+            target.relative_to(root)
+        except (OSError, ValueError) as exc:
+            raise ExplorerError(f"linked artifact {item['id']} escapes the artifact root") from exc
+        metadata = target.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise ExplorerError(f"linked artifact {item['id']} must be a single-link regular file")
+        observed_size, observed_digest = _hash_regular_file(
+            target, f"linked artifact {item['id']}", MAX_LINKED_ARTIFACT_BYTES
+        )
+        if observed_size != item["size_bytes"] or observed_digest != item["sha256"]:
+            raise ExplorerError(f"linked artifact {item['id']} does not match its accepted identity")
 
 
 def _unique_ids(items: list[dict[str, Any]], field: str) -> set[str]:
@@ -233,8 +346,8 @@ def _check_refs(values: list[str], known: set[str], field: str) -> None:
 def validate_data(payload: Any, expected_run_id: str | None = None) -> dict[str, Any]:
     source = _object(payload, "research", TOP_FIELDS)
     _required(source, "research", {"schema_version", "report", "executive_summary", "findings", "sources"})
-    if source["schema_version"] != 1:
-        raise ExplorerError("schema_version must be 1")
+    if isinstance(source["schema_version"], bool) or not isinstance(source["schema_version"], int) or source["schema_version"] != 1:
+        raise ExplorerError("schema_version must be integer 1")
 
     report = _record(
         source["report"], "report", REPORT_FIELDS,
@@ -409,6 +522,49 @@ def _read_file(path: Path, label: str, maximum: int) -> bytes:
         os.close(descriptor)
 
 
+def _hash_regular_file(path: Path, label: str, maximum: int) -> tuple[int, str]:
+    try:
+        before = path.lstat()
+    except OSError as exc:
+        raise ExplorerError(f"{label} is unavailable") from exc
+    if (
+        stat.S_ISLNK(before.st_mode)
+        or not stat.S_ISREG(before.st_mode)
+        or before.st_nlink != 1
+        or before.st_size > maximum
+    ):
+        raise ExplorerError(f"{label} is unsafe or too large")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        opened = os.fstat(descriptor)
+        if (
+            (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino)
+            or not stat.S_ISREG(opened.st_mode)
+            or opened.st_nlink != 1
+        ):
+            raise ExplorerError(f"{label} changed while opening")
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > maximum:
+                raise ExplorerError(f"{label} is too large")
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        if (
+            (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        ):
+            raise ExplorerError(f"{label} changed while hashing")
+        return size, digest.hexdigest()
+    finally:
+        os.close(descriptor)
+
+
 def _load_json(path: Path) -> Any:
     try:
         return json.loads(_read_file(path, "research data", MAX_DATA_BYTES))
@@ -417,21 +573,31 @@ def _load_json(path: Path) -> Any:
 
 
 def _atomic_write(path: Path, content: bytes, *, force: bool) -> None:
-    parent = path.parent.resolve(strict=True)
+    supplied_parent = _reject_symlink_components(path.parent, "output directory")
+    try:
+        parent_metadata = supplied_parent.lstat()
+    except OSError as exc:
+        raise ExplorerError("output directory is unavailable") from exc
+    if not stat.S_ISDIR(parent_metadata.st_mode):
+        raise ExplorerError("output directory must be a regular directory")
+    parent = supplied_parent.resolve(strict=True)
     target = parent / path.name
     if target.suffix.casefold() != ".html":
         raise ExplorerError("output filename must end in .html")
     if target.exists() or target.is_symlink():
         metadata = target.lstat()
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-            raise ExplorerError("existing output must be a regular non-symlink file")
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise ExplorerError("existing output must be a single-link regular file")
         if not force:
             raise ExplorerError("output exists; use --force only for the exact task-owned file")
     descriptor = -1
     temporary = ""
     try:
         descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=parent)
-        os.fchmod(descriptor, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
+        else:
+            os.chmod(temporary, 0o600)
         with os.fdopen(descriptor, "wb") as stream:
             descriptor = -1
             stream.write(content)
@@ -439,6 +605,15 @@ def _atomic_write(path: Path, content: bytes, *, force: bool) -> None:
             os.fsync(stream.fileno())
         os.replace(temporary, target)
         temporary = ""
+        try:
+            directory_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        except OSError:
+            directory_fd = -1
+        if directory_fd >= 0:
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -451,6 +626,16 @@ def _atomic_write(path: Path, content: bytes, *, force: bool) -> None:
 
 def _encoded_data(data: dict[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(",", ":")).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+
+
+def _data_sha256(data: dict[str, Any]) -> str:
+    return hashlib.sha256(_encoded_data(data).encode("utf-8")).hexdigest()
+
+
+def _expected_sha256(value: str, label: str) -> str:
+    if not SHA256.fullmatch(value):
+        raise ExplorerError(f"{label} must be a lowercase SHA-256 digest")
+    return value
 
 
 def _h(value: object) -> str:
@@ -479,11 +664,11 @@ def _render_content(data: dict[str, Any]) -> str:
     findings: list[str] = []
     for item in data["findings"]:
         search = " ".join((item["id"], item["title"], item["summary"], item["detail"], *item["categories"], *item["source_ids"]))
-        categories = "|".join(item["categories"])
+        categories = json.dumps(item["categories"], ensure_ascii=False, separators=(",", ":"))
         category_tags = "".join(f'<span class="tag">{_h(category)}</span>' for category in item["categories"])
         detail = f'<details><summary>Read the supporting detail</summary><p>{_h(item["detail"])}</p></details>' if item["detail"] else ""
         findings.append(
-            f'''<article class="finding record" id="finding-{_h(item['id'])}" data-search="{_h(search.casefold())}" data-confidence="{_h(item['confidence'])}" data-categories="{_h(categories)}" data-has-evidence="{'yes' if item['source_ids'] else 'no'}">
+            f'''<article class="finding record" id="finding-{_h(item['id'])}" data-search="{_h(search)}" data-confidence="{_h(item['confidence'])}" data-categories="{_h(categories)}" data-has-evidence="{'yes' if item['source_ids'] else 'no'}">
               <header><a class="record-id" href="#finding-{_h(item['id'])}">{_h(item['id'])}</a><span class="state state-{_h(item['confidence'].casefold())}">{_h(item['confidence'].title())} confidence</span></header>
               <h3>{_h(item['title'])}</h3><p class="claim">{_h(item['summary'])}</p>
               <div class="tags" aria-label="Finding categories">{category_tags or '<span class="muted">No category</span>'}</div>
@@ -498,7 +683,7 @@ def _render_content(data: dict[str, Any]) -> str:
     ) or _empty("No themes were registered in this accepted packet.")
 
     contradiction_records = "".join(
-        f'''<article class="record contradiction" id="contradiction-{_h(item['id'])}"><header><a class="record-id" href="#contradiction-{_h(item['id'])}">{_h(item['id'])}</a><span class="state state-open">{_h(item['status'].title())}</span></header><h3>{_h(item['title'])}</h3><p>{_h(item['summary'])}</p><dl class="record-links"><div><dt>Findings</dt><dd>{_id_links(item['finding_ids'], 'finding', 'Finding')}</dd></div><div><dt>Sources</dt><dd>{_id_links(item['source_ids'], 'source', 'Source')}</dd></div></dl></article>'''
+        f'''<article class="record contradiction" id="contradiction-{_h(item['id'])}"><header><a class="record-id" href="#contradiction-{_h(item['id'])}">{_h(item['id'])}</a><span class="state state-{_h(item['status'].casefold())}">{_h(item['status'].title())}</span></header><h3>{_h(item['title'])}</h3><p>{_h(item['summary'])}</p><dl class="record-links"><div><dt>Findings</dt><dd>{_id_links(item['finding_ids'], 'finding', 'Finding')}</dd></div><div><dt>Sources</dt><dd>{_id_links(item['source_ids'], 'source', 'Source')}</dd></div></dl></article>'''
         for item in data["contradictions"]
     )
     question_records = "".join(
@@ -525,7 +710,7 @@ def _render_content(data: dict[str, Any]) -> str:
     for item in data["sources"]:
         search = " ".join((item["id"], item["title"], item["publisher"], item["note"], *item["finding_ids"]))
         sources.append(
-            f'''<article class="source record" id="source-{_h(item['id'])}" data-search="{_h(search.casefold())}" data-type="{_h(item['source_type'])}" data-quality="{_h(item['quality'])}" data-title="{_h(item['title'].casefold())}" data-date="{_h(item['publication_date'])}">
+            f'''<article class="source record" id="source-{_h(item['id'])}" data-search="{_h(search)}" data-type="{_h(item['source_type'])}" data-quality="{_h(item['quality'])}" data-title="{_h(item['title'])}" data-date="{_h(item['publication_date'])}">
               <header><a class="record-id" href="#source-{_h(item['id'])}">{_h(item['id'])}</a><span class="state state-{_h(item['quality'].casefold())}">{_h(item['quality'].title())} quality</span></header>
               <h3><a href="{_h(item['url'])}" rel="noopener noreferrer" referrerpolicy="no-referrer">{_h(item['title'])}</a></h3>
               <p>{_h(item['publisher'])} · {_h(item['source_type'].title())}</p>
@@ -551,7 +736,7 @@ def _render_content(data: dict[str, Any]) -> str:
         <dl class="report-meta"><div><dt>Status</dt><dd>{_h(report['status'].replace('_', ' ').title())}</dd></div><div><dt>Started</dt><dd>{_h(report['started_at'])}</dd></div><div><dt>Completed</dt><dd>{_h(report['completed_at'])}</dd></div></dl>
         <noscript><p class="noscript-note">Interactive search and filters are unavailable, but the complete accepted research remains below.</p></noscript>
       </header>
-      <section class="report-section summary-section" aria-labelledby="summary-heading"><h2 id="summary-heading">Executive summary</h2><div class="reading-copy">{summary}</div><dl class="count-ledger"><div><dt>Findings</dt><dd>{len(data['findings'])}</dd></div><div><dt>Sources</dt><dd>{len(data['sources'])}</dd></div><div><dt>Open contradictions</dt><dd>{len(data['contradictions'])}</dd></div><div><dt>Accepted artifacts</dt><dd>{len(data['artifacts'])}</dd></div></dl></section>
+      <section class="report-section summary-section" aria-labelledby="summary-heading"><h2 id="summary-heading">Executive summary</h2><div class="reading-copy">{summary}</div><dl class="count-ledger"><div><dt>Findings</dt><dd>{len(data['findings'])}</dd></div><div><dt>Sources</dt><dd>{len(data['sources'])}</dd></div><div><dt>Open contradictions</dt><dd>{sum(item['status'] == 'OPEN' for item in data['contradictions'])}</dd></div><div><dt>Accepted artifacts</dt><dd>{len(data['artifacts'])}</dd></div></dl></section>
       <section class="report-section" id="findings" aria-labelledby="findings-heading"><div class="section-heading"><h2 id="findings-heading">Key findings</h2><p id="finding-count" aria-live="polite">{len(data['findings'])} findings shown</p></div><div class="record-stack" id="finding-list">{''.join(findings) or _empty('No findings were included in the accepted packet.')}</div></section>
       <section class="report-section" id="themes" aria-labelledby="themes-heading"><h2 id="themes-heading">Themes and relationships</h2><div class="relationship-grid">{themes}</div></section>
       <section class="report-section" id="contradictions" aria-labelledby="contradictions-heading"><h2 id="contradictions-heading">Contradictions and unresolved questions</h2><div class="record-stack">{unresolved}</div></section>
@@ -582,29 +767,82 @@ def _render_series(item: dict[str, Any]) -> str:
 
 
 def _extract_data(html: str) -> dict[str, Any]:
-    match = re.search(r'<script id="research-data" type="application/json">(.*?)</script>', html, re.S)
-    if match is None:
-        raise ExplorerError("HTML lacks the embedded research-data block")
+    matches = list(re.finditer(r'<script id="research-data" type="application/json">(.*?)</script>', html, re.S))
+    if len(matches) != 1:
+        raise ExplorerError("HTML must contain exactly one embedded research-data block")
     try:
-        return json.loads(match.group(1))
+        return json.loads(matches[0].group(1))
     except json.JSONDecodeError as exc:
         raise ExplorerError("embedded research data is invalid") from exc
 
 
+def _executable_script_text(document: str) -> str:
+    scripts: list[str] = []
+    for match in re.finditer(r"<script\b([^>]*)>(.*?)</script>", document, re.I | re.S):
+        attributes, body = match.groups()
+        if re.search(
+            r"\btype\s*=\s*([\"'])application/json\1", attributes, re.I
+        ):
+            continue
+        scripts.append(body)
+    return "\n".join(scripts)
+
+
+def _validate_template(template: str) -> None:
+    if (
+        template.count(DATA_MARKER) != 1
+        or template.count(CONTENT_MARKER) != 1
+        or template.count(SHELL_MARKER) != 1
+    ):
+        raise ExplorerError("HTML template has an invalid explorer marker")
+    if "connect-src 'none'" not in template or "default-src 'none'" not in template:
+        raise ExplorerError("HTML template lacks the required local-only content policy")
+    if re.search(r"@import\s+(?:url\s*\()?\s*['\"]?(?:https?:)?//", template, re.I):
+        raise ExplorerError("HTML template contains a remote style import")
+    if re.search(r'<(?:script|link|img|iframe|audio|video|source)[^>]+(?:src|href)=["\'](?:https?:)?//', template, re.I):
+        raise ExplorerError("HTML template contains a remote asset")
+    if re.search(
+        r"\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(",
+        _executable_script_text(template),
+    ):
+        raise ExplorerError("HTML template contains network request code")
+
+
+def _build_document(template: str, data: dict[str, Any]) -> str:
+    replacements = {
+        CONTENT_MARKER: _render_content(data),
+        DATA_MARKER: _encoded_data(data),
+    }
+    pattern = re.compile(
+        f"{re.escape(CONTENT_MARKER)}|{re.escape(DATA_MARKER)}"
+    )
+    return pattern.sub(lambda match: replacements[match.group(0)], template)
+
+
 def command_build(args: argparse.Namespace) -> int:
     data = validate_data(_load_json(Path(args.data).expanduser()))
-    template = _read_file(Path(args.template).expanduser(), "HTML template", MAX_TEMPLATE_BYTES).decode("utf-8")
-    if template.count(DATA_MARKER) != 1 or template.count(CONTENT_MARKER) != 1 or SHELL_MARKER not in template:
-        raise ExplorerError("HTML template has an invalid explorer marker")
-    document = template.replace(CONTENT_MARKER, _render_content(data))
-    document = document.replace(DATA_MARKER, _encoded_data(data))
+    template_raw = _read_file(Path(args.template).expanduser(), "HTML template", MAX_TEMPLATE_BYTES)
+    try:
+        template = template_raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ExplorerError("HTML template is not UTF-8") from exc
+    _validate_template(template)
+    output = Path(args.output).expanduser()
+    _verify_artifact_targets(data, args.artifact_root, output)
+    document = _build_document(template, data)
     encoded = document.encode("utf-8")
     if len(encoded) > MAX_HTML_BYTES:
         raise ExplorerError("generated HTML is too large")
-    output = Path(args.output).expanduser()
     _atomic_write(output, encoded, force=args.force)
     digest = hashlib.sha256(encoded).hexdigest()
-    print(json.dumps({"output": str(output.resolve()), "bytes": len(encoded), "sha256": digest, "run_id": data["report"]["run_id"]}, sort_keys=True))
+    print(json.dumps({
+        "output": str(output.resolve()),
+        "bytes": len(encoded),
+        "sha256": digest,
+        "run_id": data["report"]["run_id"],
+        "template_sha256": hashlib.sha256(template_raw).hexdigest(),
+        "data_sha256": _data_sha256(data),
+    }, sort_keys=True))
     return 0
 
 
@@ -615,13 +853,27 @@ def command_verify(args: argparse.Namespace) -> int:
         html = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ExplorerError("research explorer is not UTF-8") from exc
-    if SHELL_MARKER not in html or DATA_MARKER in html:
-        raise ExplorerError("research explorer shell is incomplete")
-    if re.search(r'<(?:script|link|img)[^>]+(?:src|href)=["\'](?:https?:)?//', html, re.I):
-        raise ExplorerError("research explorer contains a remote asset")
-    if re.search(r"\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(", html):
-        raise ExplorerError("research explorer contains network request code")
     data = validate_data(_extract_data(html), args.expected_run_id)
+    template_raw = _read_file(Path(args.template).expanduser(), "HTML template", MAX_TEMPLATE_BYTES)
+    try:
+        template = template_raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ExplorerError("HTML template is not UTF-8") from exc
+    _validate_template(template)
+    expected_template_sha256 = _expected_sha256(
+        args.expected_template_sha256, "expected template SHA-256"
+    )
+    expected_data_sha256 = _expected_sha256(
+        args.expected_data_sha256, "expected data SHA-256"
+    )
+    if hashlib.sha256(template_raw).hexdigest() != expected_template_sha256:
+        raise ExplorerError("HTML template does not match the accepted template identity")
+    if _data_sha256(data) != expected_data_sha256:
+        raise ExplorerError("embedded research data does not match the accepted data identity")
+    _verify_artifact_targets(data, args.artifact_root, path)
+    expected = _build_document(template, data).encode("utf-8")
+    if raw != expected:
+        raise ExplorerError("research explorer bytes do not match the canonical accepted rendering")
     print(json.dumps({"html": str(path.resolve()), "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest(), "run_id": data["report"]["run_id"], "findings": len(data["findings"]), "sources": len(data["sources"])}, sort_keys=True))
     return 0
 
@@ -633,11 +885,22 @@ def parser() -> SafeArgumentParser:
     build.add_argument("--data", required=True, help="accepted research JSON")
     build.add_argument("--template", required=True, help="explorer HTML template")
     build.add_argument("--output", required=True, help="exact .html output path")
+    build.add_argument(
+        "--artifact-root",
+        help="required for relative links; must exactly match the output HTML directory",
+    )
     build.add_argument("--force", action="store_true", help="replace the exact task-owned output")
     build.set_defaults(handler=command_build)
     verify = commands.add_parser("verify", help="verify one generated explorer")
     verify.add_argument("--html", required=True, help="generated explorer path")
     verify.add_argument("--expected-run-id", required=True, help="expected run ID")
+    verify.add_argument("--template", required=True, help="accepted explorer HTML template")
+    verify.add_argument("--expected-template-sha256", required=True, choices=None, help="accepted template SHA-256")
+    verify.add_argument("--expected-data-sha256", required=True, choices=None, help="accepted canonical data SHA-256")
+    verify.add_argument(
+        "--artifact-root",
+        help="required for relative links; must exactly match the explorer HTML directory",
+    )
     verify.set_defaults(handler=command_verify)
     return result
 
@@ -646,7 +909,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         return args.handler(args)
-    except (ExplorerError, OSError) as exc:
+    except (ExplorerError, OSError, ValueError, OverflowError, UnicodeError) as exc:
         print(f"research explorer error: {_safe_text(exc)}", file=sys.stderr)
         return 2
 

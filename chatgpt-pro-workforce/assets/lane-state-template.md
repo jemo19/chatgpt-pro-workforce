@@ -24,11 +24,21 @@ updated_at: "{{ISO_8601}}"
 - Conversation policy: `{{same|fresh|blind|manual}}`
 - Prompt path: `{{PATH}}`
 - Prompt SHA-256: `{{HASH}}`
-- Submitted at: {{ISO_8601_OR_NOT_SUBMITTED}}
+- Latest submitted at: {{ISO_8601_OR_NOT_SUBMITTED}}
+
+### Submission history
+
+Append a row for each observation or disposition; never replace an earlier
+submission record.
+
+| Sequence | Conversation identity | Prompt SHA-256 | Observed at | Disposition | Canonical sequence / evidence |
+|---:|---|---|---|---|---|
+| {{N}} | `{{SAFE_IDENTITY}}` | `{{HASH}}` | {{ISO_8601}} | `{{SUBMITTED|RUNNING|RETURNED|OUTCOME_UNKNOWN|TERMINAL|SUPERSEDED|SUPPRESSED_DUPLICATE}}` | {{SEQUENCE_OR_EVIDENCE}} |
 
 ## ChatGPT Pro submission gate
 
 - Account entitlement state/evidence: `{{CAPABILITY_STATE}}` / {{SAFE_VISIBLE_EVIDENCE}}
+- Expected-account policy / match: `{{ANY_SIGNED_IN_PRO|CONFIRMED_SAFE_ACCOUNT_MARKER|ASK_EACH_RUN}}` / `{{MATCH|MISMATCH|UNKNOWN|NOT_APPLICABLE}}`
 - Target conversation model/power state: `{{CAPABILITY_STATE}}`
 - Declared model / selected-state proof: {{MODEL_AND_CURRENT_SELECTED_CHECKED_STATE_OR_UNKNOWN}}
 - Thinking-power control / observed label: {{CONTROL_IDENTITY_AND_PRO_5_OF_5_OR_OBSERVED_VALUE}}
@@ -50,7 +60,7 @@ updated_at: "{{ISO_8601}}"
 
 - Last observed: {{ISO_8601}}
 - Last progress summary: {{SUMMARY}}
-- Worker state: `{{RUNNING_HEALTHY|RUNNING_WITH_TRANSIENT_ERROR|SLOW_NO_FAILURE_EVIDENCE|STALLED|BROWSER_DISCONNECTED|TERMINAL_PARTIAL_ARTIFACT_RETURN|TERMINAL_INCOMPLETE|RETURNED|OTHER}}`
+- Worker state: `{{PLANNED|PREFLIGHTED|SUBMITTED|RUNNING_HEALTHY|RUNNING_WITH_TRANSIENT_ERROR|SLOW_NO_FAILURE_EVIDENCE|STALLED|BROWSER_DISCONNECTED|TERMINAL_PARTIAL_ARTIFACT_RETURN|TERMINAL_INCOMPLETE|RETURNED|MECHANICAL_ACCEPTED|MECHANICAL_REJECTED|SEMANTIC_ACCEPTED|SEMANTIC_REJECTED|ACCEPTED|REJECTED|PARTIAL|BLOCKED|NOT_RECOVERABLE|SUPERSEDED}}`
 
 ## Recovered artifacts
 

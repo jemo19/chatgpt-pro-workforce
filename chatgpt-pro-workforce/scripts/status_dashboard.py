@@ -10,6 +10,8 @@ library.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+from datetime import datetime
 import errno
 import hashlib
 import ipaddress
@@ -18,24 +20,43 @@ import math
 import os
 from pathlib import Path
 import re
+import secrets
 import socket
 import stat
 import sys
 import tempfile
+import threading
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
 from urllib.parse import unquote_to_bytes, urlsplit
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows branch
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - POSIX branch
+    msvcrt = None
 
 
 MAX_JSON_BYTES = 512 * 1024
 MAX_TEMPLATE_BYTES = 5 * 1024 * 1024
 MAX_STRING_LENGTH = 4096
 MAX_ITEMS = 256
+MAX_SAFE_INTEGER = 2**53 - 1
+REQUEST_TIMEOUT_SECONDS = 5.0
+MAX_ACTIVE_REQUESTS = 16
+MAX_RESPONSE_HEADER_BYTES = 32 * 1024
 SAFE_RUN_ID = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,126}[A-Za-z0-9])?$")
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+INSTANCE_ID = re.compile(r"^[0-9a-f]{32}$")
+RFC3339 = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
+)
 
 RUN_STATES = {
     "DRAFT", "READY", "ACTIVE", "PAUSING", "PAUSED",
@@ -75,9 +96,16 @@ DECISION_STATES = {
 }
 SUMMARY_STATES = {"UNSET", "READY", "HEALTHY", "DEGRADED", "BLOCKED", "UNKNOWN"}
 ALERT_LEVELS = {"info", "warning", "error"}
+ALLOCATION_USAGE_BANDS = {
+    "PRO_HEAVY": "LOWEST",
+    "BALANCED": "MODERATE",
+    "CODEX_HEAVY": "HIGH",
+    "LOCAL_ONLY": "CODEX_ONLY",
+}
 
 TOP_FIELDS = {
     "schema_version",
+    "revision",
     "run",
     "progress",
     "lanes",
@@ -299,6 +327,10 @@ def _clean_string(value: Any, field: str) -> str:
         char if char in "\n\t" or ord(char) >= 32 else " " for char in value
     )
     cleaned = cleaned.replace("\x7f", " ")
+    try:
+        cleaned.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise DashboardError(f"{field} contains an invalid Unicode scalar value") from exc
     return cleaned
 
 
@@ -311,15 +343,16 @@ def _object(value: Any, field: str, allowed: set[str]) -> dict[str, Any]:
     if unknown:
         # Unknown keys are untrusted input. Do not echo them into a terminal.
         raise DashboardError(f"{field} contains {len(unknown)} unknown field(s)")
-    if len(value) > len(allowed):
-        raise DashboardError(f"{field} has too many fields")
+    missing = allowed - set(value)
+    if missing:
+        raise DashboardError(f"{field} is missing {len(missing)} required field(s)")
     return value
 
 
 def _count(value: Any, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise DashboardError(f"{field} must be a non-negative integer")
-    if value > 2**63 - 1:
+    if value > MAX_SAFE_INTEGER:
         raise DashboardError(f"{field} is too large")
     return value
 
@@ -328,6 +361,22 @@ def _enum_string(value: Any, field: str, allowed: set[str]) -> str:
     result = _clean_string(value, field)
     if result not in allowed:
         raise DashboardError(f"{field} has an unsupported value")
+    return result
+
+
+def _timestamp(value: Any, field: str) -> str:
+    result = _clean_string(value, field)
+    if not result or result != result.strip():
+        raise DashboardError(f"{field} must be a non-empty ISO-8601 timestamp")
+    if RFC3339.fullmatch(result) is None:
+        raise DashboardError(f"{field} must use RFC-3339 date-time syntax")
+    normalized = result[:-1] + "+00:00" if result.endswith("Z") else result
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise DashboardError(f"{field} must be a valid ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise DashboardError(f"{field} must include a timezone")
     return result
 
 
@@ -363,7 +412,18 @@ def _entry_list(
         raise DashboardError(f"{field} must be an array")
     if len(value) > MAX_ITEMS:
         raise DashboardError(f"{field} exceeds {MAX_ITEMS} entries")
-    return [validator(item, f"{field}[{index}]") for index, item in enumerate(value)]
+    result = [validator(item, f"{field}[{index}]") for index, item in enumerate(value)]
+    identifiers = [item.get("id") for item in result if "id" in item]
+    if len(identifiers) != len(set(identifiers)):
+        raise DashboardError(f"{field} contains duplicate ids")
+    return result
+
+
+def _require_record_identity(result: dict[str, Any], field: str) -> None:
+    _safe_run_id(result["id"])
+    label_key = "name" if "name" in result else "label" if "label" in result else None
+    if label_key is not None and not result[label_key].strip():
+        raise DashboardError(f"{field}.{label_key} must not be empty")
 
 
 def _progress(value: Any, field: str) -> dict[str, Any]:
@@ -376,6 +436,7 @@ def _progress(value: Any, field: str) -> dict[str, Any]:
     )
     if "current" in result and "total" in result and result["current"] > result["total"]:
         raise DashboardError(f"{field}.current must not exceed total")
+    _require_record_identity(result, field)
     return result
 
 
@@ -390,55 +451,63 @@ def _artifact(value: Any, field: str) -> dict[str, Any]:
     digest = result.get("sha256")
     if digest and not SHA256.fullmatch(digest):
         raise DashboardError(f"{field}.sha256 must be a 64-character hexadecimal digest")
+    _require_record_identity(result, field)
+    if result["state"] in {"RECOVERED", "RAW", "CANDIDATE", "ACCEPTED"} and not digest:
+        raise DashboardError(f"{field}.sha256 is required for materialized artifacts")
     return result
 
 
 def _lane(value: Any, field: str) -> dict[str, Any]:
-    return _string_object(value, field, LANE_FIELDS, enum_fields={"state": LANE_STATES})
+    result = _string_object(value, field, LANE_FIELDS, enum_fields={"state": LANE_STATES})
+    _require_record_identity(result, field)
+    _timestamp(result["last_observed_at"], f"{field}.last_observed_at")
+    return result
 
 
 def _readiness(value: Any, field: str) -> dict[str, Any]:
-    return _string_object(
+    result = _string_object(
         value, field, READINESS_FIELDS, enum_fields={"state": READINESS_STATES}
     )
+    _require_record_identity(result, field)
+    if not result["interface"].strip():
+        raise DashboardError(f"{field}.interface must not be empty")
+    return result
 
 
 def _gate(value: Any, field: str) -> dict[str, Any]:
-    return _string_object(
+    result = _string_object(
         value,
         field,
         GATE_FIELDS,
         enum_fields={"kind": GATE_KINDS, "state": GATE_STATES},
     )
+    _require_record_identity(result, field)
+    return result
 
 
 def _decision(value: Any, field: str) -> dict[str, Any]:
-    return _string_object(
+    result = _string_object(
         value, field, DECISION_FIELDS, enum_fields={"state": DECISION_STATES}
     )
+    _require_record_identity(result, field)
+    return result
 
 
 def _alert(value: Any, field: str) -> dict[str, Any]:
-    return _string_object(
+    result = _string_object(
         value, field, ALERT_FIELDS, enum_fields={"level": ALERT_LEVELS}
     )
+    if not result["title"].strip():
+        raise DashboardError(f"{field}.title must not be empty")
+    return result
 
 
 def _validate_status(payload: Any, run_id: str) -> dict[str, Any]:
     source = _object(payload, "status", TOP_FIELDS)
-    if "schema_version" not in source or "run" not in source:
-        raise DashboardError("status requires schema_version and run")
-
     version = source["schema_version"]
-    if isinstance(version, bool) or not isinstance(version, (str, int)):
-        raise DashboardError("schema_version must be a short string or positive integer")
-    if isinstance(version, int):
-        if version < 1 or version > 999:
-            raise DashboardError("schema_version integer is out of range")
-    else:
-        version = _clean_string(version, "schema_version")
-        if not version or len(version) > 16:
-            raise DashboardError("schema_version string must contain 1-16 characters")
+    if isinstance(version, bool) or version != 2:
+        raise DashboardError("schema_version must be integer 2")
+    revision = _count(source["revision"], "revision")
 
     run = _string_object(
         source["run"],
@@ -454,8 +523,21 @@ def _validate_status(payload: Any, run_id: str) -> dict[str, Any]:
     )
     if run.get("id") != run_id:
         raise DashboardError("run.id must exactly match --run-id")
+    _safe_run_id(run["id"])
+    if not run["title"].strip() or not run["next_action"].strip():
+        raise DashboardError("run.title and run.next_action must not be empty")
+    _timestamp(run["updated_at"], "run.updated_at")
+    expected_band = ALLOCATION_USAGE_BANDS[run["allocation_profile"]]
+    if run["codex_usage_band"] != expected_band:
+        raise DashboardError(
+            "run.codex_usage_band does not match run.allocation_profile"
+        )
 
-    result: dict[str, Any] = {"schema_version": version, "run": run}
+    result: dict[str, Any] = {
+        "schema_version": version,
+        "revision": revision,
+        "run": run,
+    }
     list_specs: dict[str, Callable[[Any, str], dict[str, Any]]] = {
         "progress": _progress,
         "lanes": _lane,
@@ -466,30 +548,44 @@ def _validate_status(payload: Any, run_id: str) -> dict[str, Any]:
         "alerts": _alert,
     }
     for name, validator in list_specs.items():
-        if name in source:
-            result[name] = _entry_list(source[name], name, validator)
+        result[name] = _entry_list(source[name], name, validator)
 
-    if "storage" in source:
-        result["storage"] = _string_object(
-            source["storage"],
-            "storage",
-            STORAGE_FIELDS,
-            numeric_fields={"used_bytes", "budget_bytes", "artifact_count"},
-            enum_fields={"state": SUMMARY_STATES},
-        )
-    if "notes" in source:
-        result["notes"] = _string_object(
-            source["notes"],
-            "notes",
-            NOTES_FIELDS,
-            numeric_fields={"count"},
-            enum_fields={"state": SUMMARY_STATES},
-        )
+    result["storage"] = _string_object(
+        source["storage"],
+        "storage",
+        STORAGE_FIELDS,
+        numeric_fields={"used_bytes", "budget_bytes", "artifact_count"},
+        enum_fields={"state": SUMMARY_STATES},
+    )
+    if result["storage"]["used_bytes"] > result["storage"]["budget_bytes"] and result["storage"]["budget_bytes"]:
+        raise DashboardError("storage.used_bytes must not exceed storage.budget_bytes")
+    result["notes"] = _string_object(
+        source["notes"],
+        "notes",
+        NOTES_FIELDS,
+        numeric_fields={"count"},
+        enum_fields={"state": SUMMARY_STATES},
+    )
+    _timestamp(result["notes"]["updated_at"], "notes.updated_at")
 
-    encoded = json.dumps(result, ensure_ascii=False, allow_nan=False).encode("utf-8")
-    if len(encoded) > MAX_JSON_BYTES:
-        raise DashboardError(f"sanitized status exceeds {MAX_JSON_BYTES} bytes")
     return result
+
+
+def _serialize_status(payload: Any, run_id: str) -> tuple[dict[str, Any], bytes]:
+    sanitized = _validate_status(payload, run_id)
+    content = (
+        json.dumps(
+            sanitized,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+    if len(content) > MAX_JSON_BYTES:
+        raise DashboardError(f"serialized status exceeds {MAX_JSON_BYTES} bytes")
+    return sanitized, content
 
 
 def _read_regular_file(
@@ -596,29 +692,107 @@ def _atomic_write(path: Path, content: bytes, mode: int = 0o600) -> None:
                 pass
 
 
+@contextmanager
+def _status_update_lock(run_dir: Path):
+    """Serialize revision comparison and publication across processes."""
+    _verify_private_path(run_dir, directory=True, label="run directory")
+    lock_path = run_dir / ".status-update.lock"
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        opened = os.fstat(descriptor)
+        _verify_private_stat(opened, directory=False, label="status update lock")
+        if stat.S_IMODE(opened.st_mode) != 0o600:
+            raise DashboardError("status update lock must have mode 0600")
+        if fcntl is not None:
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+        elif msvcrt is not None:  # pragma: no cover - Windows branch
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            msvcrt.locking(descriptor, msvcrt.LK_LOCK, 1)
+        else:  # pragma: no cover - unsupported platform
+            raise DashboardError("no supported dashboard-lock implementation is available")
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+            elif msvcrt is not None:  # pragma: no cover - Windows branch
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+    finally:
+        os.close(descriptor)
+
+
 def _write_status(run_dir: Path, status_payload: Any, run_id: str) -> Path:
-    sanitized = _validate_status(status_payload, run_id)
-    content = (
-        json.dumps(sanitized, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True)
-        + "\n"
-    ).encode("utf-8")
     target = run_dir / "status.json"
-    _atomic_write(target, content)
+    sanitized, content = _serialize_status(status_payload, run_id)
+    with _status_update_lock(run_dir):
+        if target.exists() or target.is_symlink():
+            current_raw = _read_regular_file(
+                target,
+                label="current status",
+                maximum=MAX_JSON_BYTES,
+                require_private=True,
+            )
+            try:
+                current = _validate_status(json.loads(current_raw), run_id)
+            except (UnicodeDecodeError, json.JSONDecodeError, DashboardError) as exc:
+                raise DashboardError("current status is invalid; repair it before updating") from exc
+            if sanitized["revision"] < current["revision"]:
+                raise DashboardError("status revision must not move backward")
+            if sanitized["revision"] == current["revision"]:
+                if content == current_raw:
+                    return target
+                raise DashboardError("status revision must increase when content changes")
+        _atomic_write(target, content)
     return target
 
 
 def _default_status(run_id: str) -> dict[str, Any]:
     return {
-        "schema_version": 1,
-        "run": {"id": run_id, "status": "DRAFT", "freshness": "CURRENT"},
-        "progress": [],
+        "schema_version": 2,
+        "revision": 0,
+        "run": {
+            "id": run_id,
+            "title": "Workforce setup",
+            "status": "DRAFT",
+            "allocation_profile": "BALANCED",
+            "codex_usage_band": "MODERATE",
+            "route": "UNKNOWN",
+            "freshness": "UNKNOWN",
+            "updated_at": "1970-01-01T00:00:00Z",
+            "next_action": "Complete guided setup",
+        },
+        "progress": [
+            {
+                "id": "scope",
+                "label": "Scope",
+                "current": 0,
+                "total": 0,
+                "state": "OPEN",
+                "detail": "No finite scope registry yet",
+            }
+        ],
         "lanes": [],
         "readiness": [],
         "artifacts": [],
         "gates": [],
         "decisions": [],
-        "storage": {"state": "UNKNOWN", "summary": "Not yet reported"},
-        "notes": {"state": "UNKNOWN", "summary": "Not yet reported"},
+        "storage": {
+            "state": "UNSET",
+            "summary": "Storage is not configured",
+            "used_bytes": 0,
+            "budget_bytes": 0,
+            "artifact_count": 0,
+            "detail": "Choose a dedicated run-owned root during guided setup",
+        },
+        "notes": {
+            "state": "UNSET",
+            "summary": "Research notes are not configured",
+            "count": 0,
+            "updated_at": "1970-01-01T00:00:00Z",
+            "detail": "Choose a research-note root during guided setup",
+        },
         "alerts": [],
     }
 
@@ -646,11 +820,7 @@ def command_init(args: argparse.Namespace) -> int:
     has_status_source = args.status_file is not None
     payload = _load_status(args) if has_status_source else _default_status(run_id)
     # Validate both outputs before replacing either one.
-    sanitized = _validate_status(payload, run_id)
-    status_bytes = (
-        json.dumps(sanitized, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True)
-        + "\n"
-    ).encode("utf-8")
+    _sanitized, status_bytes = _serialize_status(payload, run_id)
     _atomic_write(index, template_bytes)
     _atomic_write(status, status_bytes)
     print(str(run_dir))
@@ -666,7 +836,28 @@ def command_update(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_refresh_shell(args: argparse.Namespace) -> int:
+    """Replace only the run-owned dashboard shell, preserving status.json."""
+    run_id = _safe_run_id(args.run_id)
+    root = _validate_dashboard_root(args.root, create=False)
+    run_dir = _run_directory(root, run_id, create=False)
+    template = Path(args.template).expanduser()
+    template_bytes = _read_regular_file(
+        template,
+        label="HTML template",
+        maximum=MAX_TEMPLATE_BYTES,
+        require_private=False,
+    )
+    if b"\x00" in template_bytes or b'data-dashboard-shell="workforce-status-v2"' not in template_bytes:
+        raise DashboardError("HTML template is not the expected dashboard shell")
+    _atomic_write(run_dir / "index.html", template_bytes)
+    print(str(run_dir / "index.html"))
+    return 0
+
+
 def _loopback_addresses(host: str) -> list[tuple[int, str]]:
+    if host.casefold() not in {"localhost", "127.0.0.1", "::1"}:
+        raise DashboardError("host must be localhost or a literal loopback address")
     try:
         records = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     except socket.gaierror as exc:
@@ -746,7 +937,12 @@ def _read_dashboard_file(root: Path, run_id: str, filename: str) -> bytes:
             )
             parent_fd = child_fd
 
-        file_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        file_flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
         file_fd = os.open(filename, file_flags, dir_fd=parent_fd)
         descriptors.append(file_fd)
         opened = os.fstat(file_fd)
@@ -771,12 +967,16 @@ def _read_dashboard_file(root: Path, run_id: str, filename: str) -> bytes:
             os.close(descriptor)
 
 
-def _handler_for(root: Path) -> type[BaseHTTPRequestHandler]:
+def _handler_for(root: Path, instance_id: str) -> type[BaseHTTPRequestHandler]:
     root_fingerprint = _root_fingerprint(root)
 
     class DashboardHandler(BaseHTTPRequestHandler):
         server_version = "LocalStatusDashboard/1"
         sys_version = ""
+
+        def setup(self) -> None:
+            super().setup()
+            self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
 
         def log_message(self, _format: str, *_args: object) -> None:
             # Do not log request paths: query strings can accidentally contain
@@ -864,7 +1064,11 @@ def _handler_for(root: Path) -> type[BaseHTTPRequestHandler]:
                 return
             if urlsplit(self.path).path == "/healthz":
                 body = json.dumps(
-                    {"status": "ok", "root_fingerprint": root_fingerprint},
+                    {
+                        "status": "ok",
+                        "root_fingerprint": root_fingerprint,
+                        "instance_id": instance_id,
+                    },
                     separators=(",", ":"),
                     sort_keys=True,
                 ).encode("utf-8") + b"\n"
@@ -889,6 +1093,12 @@ def _handler_for(root: Path) -> type[BaseHTTPRequestHandler]:
             except (DashboardError, OSError):
                 self._error(HTTPStatus.NOT_FOUND)
                 return
+            if filename == "status.json":
+                try:
+                    _validate_status(json.loads(body), run_id)
+                except (DashboardError, UnicodeDecodeError, json.JSONDecodeError):
+                    self._error(HTTPStatus.UNPROCESSABLE_ENTITY)
+                    return
             self._respond(HTTPStatus.OK, body, content_type)
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
@@ -910,11 +1120,32 @@ def command_serve(args: argparse.Namespace) -> int:
         _verify_private_path(runs, directory=True, label="runs directory")
     addresses = _loopback_addresses(args.bind)
     family, address = addresses[0]
+    instance_id = secrets.token_hex(16)
 
     class DashboardServer(ThreadingHTTPServer):
         address_family = family
         daemon_threads = True
         allow_reuse_address = True
+
+        def __init__(self, *server_args: object, **server_kwargs: object) -> None:
+            self._request_slots = threading.BoundedSemaphore(MAX_ACTIVE_REQUESTS)
+            super().__init__(*server_args, **server_kwargs)
+
+        def process_request(self, request: socket.socket, client_address: object) -> None:
+            if not self._request_slots.acquire(blocking=False):
+                self.shutdown_request(request)
+                return
+            try:
+                super().process_request(request, client_address)
+            except BaseException:
+                self._request_slots.release()
+                raise
+
+        def process_request_thread(self, request: socket.socket, client_address: object) -> None:
+            try:
+                super().process_request_thread(request, client_address)
+            finally:
+                self._request_slots.release()
 
         def handle_error(self, _request: object, _client_address: object) -> None:
             # Request data and local paths must never appear in terminal
@@ -922,10 +1153,11 @@ def command_serve(args: argparse.Namespace) -> int:
             # intentionally disabled by the handler as well.
             return
 
-    server = DashboardServer((address, args.port), _handler_for(root))
+    server = DashboardServer((address, args.port), _handler_for(root, instance_id))
     actual = server.server_address
     display_host = f"[{actual[0]}]" if family == socket.AF_INET6 else actual[0]
     print(f"http://{display_host}:{actual[1]}/", flush=True)
+    print(f"INSTANCE_ID={instance_id}", flush=True)
     try:
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:
@@ -952,29 +1184,40 @@ def command_health(args: argparse.Namespace) -> int:
 
     if not args.expected_root:
         raise DashboardError("remote health requires --expected-root")
+    if not args.expected_instance_id or INSTANCE_ID.fullmatch(args.expected_instance_id) is None:
+        raise DashboardError("remote health requires a valid --expected-instance-id")
     expected_root = _validate_dashboard_root(args.expected_root, create=False)
     expected_fingerprint = _root_fingerprint(expected_root)
     addresses = _loopback_addresses(args.host)
     family, address = addresses[0]
-    display_host = f"[{address}]" if family == socket.AF_INET6 else address
-    url = f"http://{display_host}:{args.port}/healthz"
-    request = Request(url, headers={"Host": f"localhost:{args.port}"})
     try:
-        with urlopen(request, timeout=args.timeout) as response:
-            body = json.load(response)
-            if (
-                response.status != HTTPStatus.OK
-                or not isinstance(body, dict)
-                or body.get("status") != "ok"
-                or body.get("root_fingerprint") != expected_fingerprint
-                or set(body) != {"status", "root_fingerprint"}
-            ):
-                raise DashboardError("dashboard health response was not healthy")
+        raw, content_type = _probe_endpoint(
+            address,
+            args.port,
+            "/healthz",
+            timeout=args.timeout,
+            maximum=4096,
+            label="dashboard health",
+        )
+        body = json.loads(raw)
+        if (
+            "application/json" not in content_type
+            or not isinstance(body, dict)
+            or body.get("status") != "ok"
+            or body.get("root_fingerprint") != expected_fingerprint
+            or body.get("instance_id") != args.expected_instance_id
+            or set(body) != {"status", "root_fingerprint", "instance_id"}
+        ):
+            raise DashboardError("dashboard health response was not healthy")
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise DashboardError(f"dashboard health check failed: {exc}") from exc
     print(
         json.dumps(
-            {"status": "ok", "root_fingerprint": expected_fingerprint},
+            {
+                "status": "ok",
+                "root_fingerprint": expected_fingerprint,
+                "instance_id": args.expected_instance_id,
+            },
             separators=(",", ":"),
             sort_keys=True,
         )
@@ -982,26 +1225,115 @@ def command_health(args: argparse.Namespace) -> int:
     return 0
 
 
-def _probe_url(url: str, *, port: int, timeout: float, label: str) -> tuple[bytes, str]:
-    request = Request(url, headers={"Host": f"localhost:{port}"})
+def _probe_endpoint(
+    address: str,
+    port: int,
+    path: str,
+    *,
+    timeout: float,
+    maximum: int,
+    label: str,
+) -> tuple[bytes, str]:
+    """Read one exact loopback endpoint with a total deadline and no redirects/proxies."""
+    deadline = time.monotonic() + timeout
     try:
-        with urlopen(request, timeout=timeout) as response:
-            body = response.read(MAX_TEMPLATE_BYTES + 1)
-            content_type = response.headers.get("Content-Type", "")
-            if response.status != HTTPStatus.OK:
-                raise DashboardError(f"{label}_unavailable: HTTP {response.status}")
-    except HTTPError as exc:
-        raise DashboardError(f"{label}_unavailable: HTTP {exc.code}") from exc
-    except (URLError, OSError, TimeoutError) as exc:
+        target_ip = ipaddress.ip_address(address)
+    except ValueError as exc:
+        raise DashboardError(f"{label}_unavailable: target is not a literal address") from exc
+    if not target_ip.is_loopback:
+        raise DashboardError(f"{label}_unavailable: target is not loopback")
+    family = socket.AF_INET6 if target_ip.version == 6 else socket.AF_INET
+    connection = socket.socket(family, socket.SOCK_STREAM)
+    try:
+        connection.settimeout(max(0.001, deadline - time.monotonic()))
+        connection.connect((address, port))
+        request = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: localhost:{port}\r\n"
+            "Accept-Encoding: identity\r\n"
+            "Connection: close\r\n\r\n"
+        ).encode("ascii")
+        connection.settimeout(max(0.001, deadline - time.monotonic()))
+        connection.sendall(request)
+
+        received = bytearray()
+        header_end = -1
+        while header_end < 0:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise DashboardError(f"{label}_unavailable: total response deadline exceeded")
+            connection.settimeout(min(0.2, remaining))
+            try:
+                chunk = connection.recv(min(4096, MAX_RESPONSE_HEADER_BYTES + 1 - len(received)))
+            except socket.timeout:
+                continue
+            if not chunk:
+                raise DashboardError(f"{label}_invalid: incomplete response headers")
+            received.extend(chunk)
+            if len(received) > MAX_RESPONSE_HEADER_BYTES:
+                raise DashboardError(f"{label}_invalid: response headers are too large")
+            header_end = received.find(b"\r\n\r\n")
+
+        header_bytes = bytes(received[:header_end])
+        body = bytearray(received[header_end + 4 :])
+        try:
+            header_lines = header_bytes.decode("iso-8859-1").split("\r\n")
+        except UnicodeDecodeError as exc:  # pragma: no cover - iso-8859-1 is total
+            raise DashboardError(f"{label}_invalid: malformed response headers") from exc
+        status_match = re.fullmatch(r"HTTP/1\.[01] ([0-9]{3})(?: [^\r\n]*)?", header_lines[0])
+        if status_match is None:
+            raise DashboardError(f"{label}_invalid: malformed status line")
+        status_code = int(status_match.group(1))
+        if status_code != HTTPStatus.OK:
+            category = "invalid" if status_code == HTTPStatus.UNPROCESSABLE_ENTITY else "unavailable"
+            raise DashboardError(f"{label}_{category}: HTTP {status_code}")
+
+        headers: dict[str, str] = {}
+        for line in header_lines[1:]:
+            if ":" not in line:
+                raise DashboardError(f"{label}_invalid: malformed response header")
+            name, value = line.split(":", 1)
+            key = name.strip().casefold()
+            if not re.fullmatch(r"[a-z0-9!#$%&'*+.^_`|~-]+", key) or key in headers:
+                raise DashboardError(f"{label}_invalid: duplicate or malformed response header")
+            headers[key] = value.strip()
+        if "transfer-encoding" in headers:
+            raise DashboardError(f"{label}_invalid: transfer encoding is not supported")
+        declared_text = headers.get("content-length")
+        if declared_text is None or re.fullmatch(r"[0-9]+", declared_text) is None:
+            raise DashboardError(f"{label}_invalid: missing or malformed content length")
+        declared_length = int(declared_text)
+        if declared_length > maximum:
+            raise DashboardError(f"{label}_invalid: response is too large")
+        if len(body) > declared_length:
+            raise DashboardError(f"{label}_invalid: response exceeds content length")
+        while len(body) < declared_length:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise DashboardError(f"{label}_unavailable: total response deadline exceeded")
+            connection.settimeout(min(0.2, remaining))
+            try:
+                chunk = connection.recv(min(65536, declared_length - len(body)))
+            except socket.timeout:
+                continue
+            if not chunk:
+                raise DashboardError(f"{label}_invalid: incomplete response body")
+            body.extend(chunk)
+        content_type = headers.get("content-type", "")
+    except DashboardError:
+        raise
+    except (OSError, TimeoutError) as exc:
         raise DashboardError(f"{label}_unavailable: connection failed") from exc
-    if len(body) > MAX_TEMPLATE_BYTES:
-        raise DashboardError(f"{label}_invalid: response is too large")
-    return body, content_type
+    finally:
+        connection.close()
+    return bytes(body), str(content_type)
 
 
 def command_verify(args: argparse.Namespace) -> int:
     """Verify server identity, exact run page, and current sanitized snapshot."""
     run_id = _safe_run_id(args.run_id)
+    if INSTANCE_ID.fullmatch(args.expected_instance_id) is None:
+        raise DashboardError("--expected-instance-id must be the managed 32-character value")
     expected_root = _validate_dashboard_root(args.expected_root, create=False)
     expected_fingerprint = _root_fingerprint(expected_root)
     addresses = _loopback_addresses(args.host)
@@ -1009,8 +1341,8 @@ def command_verify(args: argparse.Namespace) -> int:
     display_host = f"[{address}]" if family == socket.AF_INET6 else address
     base = f"http://{display_host}:{args.port}"
 
-    health_body, health_type = _probe_url(
-        f"{base}/healthz", port=args.port, timeout=args.timeout, label="server"
+    health_body, health_type = _probe_endpoint(
+        address, args.port, "/healthz", timeout=args.timeout, maximum=4096, label="server"
     )
     try:
         health = json.loads(health_body)
@@ -1019,23 +1351,36 @@ def command_verify(args: argparse.Namespace) -> int:
     if (
         "application/json" not in health_type
         or not isinstance(health, dict)
-        or set(health) != {"status", "root_fingerprint"}
+        or set(health) != {"status", "root_fingerprint", "instance_id"}
         or health.get("status") != "ok"
         or health.get("root_fingerprint") != expected_fingerprint
+        or health.get("instance_id") != args.expected_instance_id
     ):
         raise DashboardError("server_identity_mismatch: wrong dashboard root or service")
 
     run_url = f"{base}/runs/{run_id}/"
-    page_body, page_type = _probe_url(
-        run_url, port=args.port, timeout=args.timeout, label="run_page"
+    page_body, page_type = _probe_endpoint(
+        address,
+        args.port,
+        f"/runs/{run_id}/",
+        timeout=args.timeout,
+        maximum=MAX_TEMPLATE_BYTES,
+        label="run_page",
     )
-    if "text/html" not in page_type or b'data-dashboard-shell="workforce-status-v2"' not in page_body:
+    expected_page = _read_dashboard_file(expected_root, run_id, "index.html")
+    if (
+        "text/html" not in page_type
+        or b'data-dashboard-shell="workforce-status-v2"' not in page_body
+        or page_body != expected_page
+    ):
         raise DashboardError("run_page_invalid: expected dashboard shell was not served")
 
-    status_body, status_type = _probe_url(
-        f"{run_url}status.json",
-        port=args.port,
+    status_body, status_type = _probe_endpoint(
+        address,
+        args.port,
+        f"/runs/{run_id}/status.json",
         timeout=args.timeout,
+        maximum=MAX_JSON_BYTES,
         label="status_snapshot",
     )
     if len(status_body) > MAX_JSON_BYTES or "application/json" not in status_type:
@@ -1045,6 +1390,9 @@ def command_verify(args: argparse.Namespace) -> int:
         sanitized = _validate_status(payload, run_id)
     except (UnicodeDecodeError, json.JSONDecodeError, DashboardError) as exc:
         raise DashboardError("status_snapshot_invalid: schema or run identity failed") from exc
+    expected_status = _read_dashboard_file(expected_root, run_id, "status.json")
+    if status_body != expected_status:
+        raise DashboardError("status_snapshot_invalid: served bytes do not match the selected run")
 
     print(
         json.dumps(
@@ -1053,6 +1401,7 @@ def command_verify(args: argparse.Namespace) -> int:
                 "run_id": run_id,
                 "page_url": run_url,
                 "root_fingerprint": expected_fingerprint,
+                "instance_id": args.expected_instance_id,
                 "status_sha256": hashlib.sha256(status_body).hexdigest(),
                 "freshness": sanitized["run"].get("freshness", "UNKNOWN"),
                 "updated_at": sanitized["run"].get("updated_at", ""),
@@ -1088,6 +1437,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_status_source(update_parser)
     update_parser.set_defaults(handler=command_update)
 
+    refresh_parser = subparsers.add_parser(
+        "refresh-shell", help="atomically refresh one run's dashboard HTML without changing status"
+    )
+    refresh_parser.add_argument("--root", required=True, help="dedicated dashboard root")
+    refresh_parser.add_argument("--run-id", required=True, help="safe public run ID")
+    refresh_parser.add_argument("--template", required=True, help="HTML template to copy")
+    refresh_parser.set_defaults(handler=command_refresh_shell)
+
     serve_parser = subparsers.add_parser("serve", help="serve the dashboard on loopback")
     serve_parser.add_argument("--root", required=True, help="dedicated dashboard root")
     serve_parser.add_argument("--bind", default="127.0.0.1", help="loopback bind address")
@@ -1102,6 +1459,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--expected-root",
         help="required with --host; verify the server's exact dashboard root",
     )
+    health_parser.add_argument(
+        "--expected-instance-id",
+        help="required with --host; value printed by the managed serve process",
+    )
     health_parser.add_argument("--port", type=int, default=8765, help="running dashboard port")
     health_parser.add_argument("--timeout", type=float, default=2.0)
     health_parser.set_defaults(handler=command_health)
@@ -1112,6 +1473,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--host", default="127.0.0.1", help="loopback host")
     verify_parser.add_argument("--port", type=int, default=8765, help="running dashboard port")
     verify_parser.add_argument("--expected-root", required=True, help="expected dedicated dashboard root")
+    verify_parser.add_argument(
+        "--expected-instance-id",
+        required=True,
+        help="value printed by the managed serve process",
+    )
     verify_parser.add_argument("--run-id", required=True, help="safe public run ID")
     verify_parser.add_argument("--timeout", type=float, default=2.0)
     verify_parser.set_defaults(handler=command_verify)

@@ -75,6 +75,7 @@ updated_at: "{{ISO_8601}}"
 - Capability delta / last verified route: {{DELTA_OR_NONE_OBSERVED}} / `{{ROUTE_OR_UNKNOWN}}`
 - Proposed route: `{{FULL_BROWSER_AND_DESKTOP|BROWSER_ONLY|BROWSER_WITH_MANUAL_DESKTOP|MANUAL_BROWSER_HANDOFF|LOCAL_CODEX_ONLY|BLOCKED|PENDING_PREFLIGHT}}`
 - Pro account entitlement: `{{AVAILABLE_VERIFIED|OTHER_CAPABILITY_STATE|PENDING_PREFLIGHT}}`
+- Expected-account policy / match: `{{ANY_SIGNED_IN_PRO|CONFIRMED_SAFE_ACCOUNT_MARKER|ASK_EACH_RUN}}` / `{{MATCH|MISMATCH|UNKNOWN|NOT_APPLICABLE}}`
 - Per-conversation Pro gate: `required immediately before every Pro submission`
 - Pro mode proof rule: `account badge/collapsed Pro/High are insufficient; exact target must be PRO_MAX_POWER_VERIFIED as Pro, 5 of 5`
 - Workload prerequisite status: `{{READY|MISSING|OFFERED|AWAITING_APPROVAL|IN_PROGRESS|MANUAL_ACTION_REQUIRED|VERIFIED|FAILED|DECLINED|BLOCKED|NOT_NEEDED}}`

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
   <title>Research explorer</title>
   <style>
     :root {
@@ -56,6 +57,8 @@
     .toolbar input, .toolbar select { padding: 7px 10px; }
     .toolbar button { align-self: end; padding: 7px 13px; cursor: pointer; }
     .toolbar button:hover { border-color: var(--link); color: var(--link-strong); background: var(--blue-soft); }
+    .navigation-notice { min-height: 1.5rem; margin: 0; padding: 4px max(16px, calc((100vw - 1540px) / 2)); color: var(--link-strong); background: var(--blue-soft); font-size: 0.78rem; }
+    .navigation-notice:empty { display: none; }
 
     .page { width: min(1540px, calc(100% - 40px)); margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr) 250px; gap: 34px; }
     .contents, .trace { position: sticky; top: 82px; align-self: start; max-height: calc(100vh - 102px); overflow: auto; padding: 28px 0; }
@@ -187,6 +190,8 @@
       main { padding: 0; }
       .report-header { box-shadow: none; break-after: avoid; }
       .report-section, .record, .data-figure { break-inside: avoid; }
+      .finding[hidden], .source[hidden] { display: block !important; }
+      details > * { display: block !important; }
       a { color: inherit; text-decoration: none; }
       a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.72em; overflow-wrap: anywhere; }
     }
@@ -211,6 +216,7 @@
     <button id="reset" type="reset">Reset</button>
     <button id="print" type="button">Print</button>
   </form>
+  <p class="navigation-notice" id="navigation-notice" role="status" aria-live="polite"></p>
   <noscript><p class="noscript-note">Search and filters need JavaScript. The complete accepted research is still readable below.</p></noscript>
   <div class="page">
     <nav class="contents" aria-label="Research sections">
@@ -240,11 +246,22 @@
       const sourceSort = document.getElementById("source-sort");
       const findingCount = document.getElementById("finding-count");
       const sourceCount = document.getElementById("source-count");
+      const navigationNotice = document.getElementById("navigation-notice");
       const findings = Array.from(document.querySelectorAll(".finding"));
       const sources = Array.from(document.querySelectorAll(".source"));
       const sourceList = document.getElementById("source-list");
 
-      Array.from(new Set(findings.flatMap((item) => item.dataset.categories.split("|").filter(Boolean))))
+      const categoriesFor = (item) => {
+        try {
+          const values = JSON.parse(item.dataset.categories);
+          return Array.isArray(values) && values.every((value) => typeof value === "string") ? values : [];
+        } catch (_error) {
+          return [];
+        }
+      };
+      const normalizeSearch = (value) => String(value).normalize("NFKC").toLocaleLowerCase("und");
+
+      Array.from(new Set(findings.flatMap(categoriesFor)))
         .sort((left, right) => left.localeCompare(right))
         .forEach((name) => {
           const option = document.createElement("option");
@@ -254,17 +271,17 @@
         });
 
       function applyFilters() {
-        const query = search.value.trim().toLocaleLowerCase();
+        const query = normalizeSearch(search.value.trim());
         let visibleFindings = 0;
         let visibleSources = 0;
         findings.forEach((item) => {
-          const itemCategories = item.dataset.categories.split("|");
-          const shown = (!query || item.dataset.search.includes(query)) && (!confidence.value || item.dataset.confidence === confidence.value) && (!evidence.value || item.dataset.hasEvidence === evidence.value) && (!category.value || itemCategories.includes(category.value));
+          const itemCategories = categoriesFor(item);
+          const shown = (!query || normalizeSearch(item.dataset.search).includes(query)) && (!confidence.value || item.dataset.confidence === confidence.value) && (!evidence.value || item.dataset.hasEvidence === evidence.value) && (!category.value || itemCategories.includes(category.value));
           item.hidden = !shown;
           if (shown) visibleFindings += 1;
         });
         sources.forEach((item) => {
-          const shown = (!query || item.dataset.search.includes(query)) && (!sourceType.value || item.dataset.type === sourceType.value) && (!quality.value || item.dataset.quality === quality.value);
+          const shown = (!query || normalizeSearch(item.dataset.search).includes(query)) && (!sourceType.value || item.dataset.type === sourceType.value) && (!quality.value || item.dataset.quality === quality.value);
           item.hidden = !shown;
           if (shown) visibleSources += 1;
         });
@@ -281,8 +298,69 @@
 
       controls.addEventListener("input", applyFilters);
       controls.addEventListener("reset", () => window.setTimeout(applyFilters, 0));
+      const revealTarget = (fragment, announce = true) => {
+        let targetId;
+        try {
+          targetId = decodeURIComponent(String(fragment).replace(/^#/, ""));
+        } catch (_error) {
+          return;
+        }
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const wasHidden = target.hidden;
+        if (target.classList.contains("finding")) {
+          search.value = "";
+          confidence.value = "";
+          evidence.value = "";
+          category.value = "";
+        } else if (target.classList.contains("source")) {
+          search.value = "";
+          sourceType.value = "";
+          quality.value = "";
+        }
+        applyFilters();
+        const disclosure = target.closest("details");
+        if (disclosure) disclosure.open = true;
+        target.tabIndex = -1;
+        window.setTimeout(() => {
+          target.focus({ preventScroll: true });
+          target.scrollIntoView({ block: "center" });
+        }, 0);
+        if (announce && wasHidden) navigationNotice.textContent = `Filters adjusted to show ${targetId}.`;
+      };
+      document.getElementById("research-report").addEventListener("click", (event) => {
+        const link = event.target.closest('a[href^="#"]');
+        if (!link) return;
+        event.preventDefault();
+        const fragment = link.getAttribute("href");
+        if (window.location.hash !== fragment) window.history.pushState(null, "", fragment);
+        revealTarget(fragment);
+      });
+      window.addEventListener("hashchange", () => revealTarget(window.location.hash));
+      let printState = null;
+      window.addEventListener("beforeprint", () => {
+        printState = {
+          findingCount: findingCount.textContent,
+          sourceCount: sourceCount.textContent,
+          details: Array.from(document.querySelectorAll("details")).map((item) => item.open)
+        };
+        findings.forEach((item) => { item.hidden = false; });
+        sources.forEach((item) => { item.hidden = false; });
+        document.querySelectorAll("details").forEach((item) => { item.open = true; });
+        findingCount.textContent = `${findings.length} findings in full report`;
+        sourceCount.textContent = `${sources.length} sources in full report`;
+      });
+      window.addEventListener("afterprint", () => {
+        if (!printState) return;
+        document.querySelectorAll("details").forEach((item, index) => { item.open = printState.details[index]; });
+        applyFilters();
+        findingCount.textContent = printState.findingCount;
+        sourceCount.textContent = printState.sourceCount;
+        printState = null;
+      });
       document.getElementById("print").addEventListener("click", () => window.print());
       applyFilters();
+      if (window.location.hash) revealTarget(window.location.hash, false);
     })();
   </script>
 </body>

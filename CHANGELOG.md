@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-07
+
 ### Added
 
 - A mandatory per-submission ChatGPT Pro gate that separately verifies account
@@ -15,6 +17,50 @@ All notable changes to this project are documented here. The project follows
 - Durable Pro-mode evidence, failure handling, status reporting, and regression
   coverage. A profile badge, collapsed `Pro` button, `High`, or remembered
   default no longer counts as maximum-power conversation proof.
+- A private SQLite run-state kernel with exclusive ownership, monotonic
+  revisions, write-ahead send intent, duplicate suppression, explicit
+  abandoned-session takeover, pause/resume, and evidence-bound terminal states.
+- A bounded artifact intake and cleanup helper with hostile-ZIP defenses,
+  immutable content-addressed raw storage, provenance, Base64 limits, and
+  recoverable private quarantine.
+- Dashboard schema v2 with revision ordering, exact server instance identity,
+  absolute probe deadlines, serialized publication, stale-data handling, and a
+  shell-only refresh path.
+- Canonical research-explorer verification bound to the exact run, template,
+  accepted data, artifact root, and output bytes.
+- A portable, single-writer immutable-revision state fallback for platforms
+  where the Linux transactional helper cannot pass its security preflight.
+- The complete Apache-2.0 license inside the installable skill and release ZIP.
+
+### Changed
+
+- Reduced the top-level skill to a progressive-disclosure runtime contract and
+  moved detailed procedures into their owning references.
+- Hardened deterministic packaging against source mutation, path aliases,
+  ambiguous members, concurrent publishers, torn release sets, and incomplete
+  rollback.
+- Rewrote and expanded public docs, refreshed dashboard screenshots, and added
+  executable regression coverage for state, artifacts, packaging, dashboard
+  concurrency/timeouts, and explorer identity.
+
+### Fixed
+
+- Reclaiming a run after its owning Codex session ended unexpectedly.
+- Dashboard revision regression under concurrent updates and slow-header probe
+  hangs.
+- Artifact FIFO hangs and cleanup races that could otherwise act on changed
+  bytes.
+- Artifact links validated under a different directory than the HTML page that
+  opens them.
+- Unattributed raw or extracted bytes after interrupted or rejected artifact
+  intake.
+- Run-state event exhaustion blocking reconciliation or a safe exit; ordinary
+  work now stops early and preserves a bounded safety reserve for rollover.
+- Capacity-bound paused or released runs becoming impossible to reclaim for a
+  recovery-only terminal close after all browser work was reconciled.
+- Release verification trusting a forged manifest path; verify-only now
+  revalidates the complete archive and manifest boundary before acceptance.
+- Repository checks leaving generated Python bytecode in the publishable tree.
 
 ## [1.2.0] - 2026-08-31
 
@@ -65,7 +111,8 @@ All notable changes to this project are documented here. The project follows
 - Sanitized loopback-only dashboard with detailed help and copyable controls.
 - Dependency-free runtime helpers and public deterministic validation suites.
 
-[Unreleased]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jemo19/chatgpt-pro-workforce/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/jemo19/chatgpt-pro-workforce/releases/tag/v1.0.0

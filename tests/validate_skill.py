@@ -6,12 +6,14 @@ import hashlib
 import json
 import re
 import stat
+import subprocess
 import sys
 
 ROOT = Path(sys.argv[1]).resolve()
 EXPECTED_NAME = sys.argv[2] if len(sys.argv) > 2 else ROOT.name
 EXPECTED = {
     "SKILL.md",
+    "LICENSE",
     "agents/openai.yaml",
     "references/capability-preflight.md",
     "references/local-control-profile.md",
@@ -55,6 +57,8 @@ EXPECTED = {
     "scripts/obsidian_locator.py",
     "scripts/status_dashboard.py",
     "scripts/research_explorer.py",
+    "scripts/run_state.py",
+    "scripts/artifact_store.py",
 }
 
 
@@ -144,10 +148,19 @@ def main() -> int:
             except json.JSONDecodeError as exc:
                 errors.append(f"invalid JSON: {rel}: {exc}")
 
+    license_path = ROOT / "LICENSE"
+    if license_path.is_file():
+        license_bytes = license_path.read_bytes().replace(b"\r\n", b"\n")
+        license_digest = hashlib.sha256(license_bytes).hexdigest()
+        if license_digest != "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30":
+            errors.append("LICENSE is not the complete Apache-2.0 license shipped by the repository")
+
     runtime_scripts = [path for path in files if "/scripts/" in f"/{path.relative_to(ROOT).as_posix()}"]
     if [path.relative_to(ROOT).as_posix() for path in runtime_scripts] != [
+        "scripts/artifact_store.py",
         "scripts/obsidian_locator.py",
         "scripts/research_explorer.py",
+        "scripts/run_state.py",
         "scripts/status_dashboard.py",
     ]:
         errors.append("unexpected runtime script inventory")
@@ -157,6 +170,26 @@ def main() -> int:
                 compile(runtime_script.read_text(), str(runtime_script), "exec")
             except SyntaxError as exc:
                 errors.append(f"runtime helper syntax error: {runtime_script.name}: {exc}")
+                continue
+            try:
+                completed = subprocess.run(
+                    [sys.executable, "-I", "-B", str(runtime_script), "--help"],
+                    cwd=ROOT,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                errors.append(f"runtime helper smoke test failed: {runtime_script.name}: {exc}")
+            else:
+                if completed.returncode != 0 or "usage:" not in completed.stdout:
+                    errors.append(
+                        f"runtime helper --help failed: {runtime_script.name}: "
+                        f"exit={completed.returncode}"
+                    )
 
     skill_text = (ROOT / "SKILL.md").read_text()
     frontmatter_match = re.match(r"^---\n(.*?)\n---\n", skill_text, re.S)
@@ -342,6 +375,9 @@ def main() -> int:
     dashboard = (ROOT / "references/local-status-dashboard.md").read_text()
     dashboard_html = (ROOT / "assets/status-dashboard-template.html").read_text()
     dashboard_script = (ROOT / "scripts/status_dashboard.py").read_text()
+    state_handoff = (ROOT / "references/state-and-handoff.md").read_text()
+    run_state_script = (ROOT / "scripts/run_state.py").read_text()
+    artifact_store_script = (ROOT / "scripts/artifact_store.py").read_text()
     dashboard_data = json.loads((ROOT / "assets/status-data-template.json").read_text())
     platform_stacks = (ROOT / "references/platform-control-stacks.md").read_text()
     install_lifecycle = (ROOT / "references/installation-and-uninstall.md").read_text()
@@ -522,6 +558,7 @@ def main() -> int:
             errors.append(f"dashboard contract missing: {term}")
     if set(dashboard_data) != {
         "schema_version",
+        "revision",
         "run",
         "progress",
         "lanes",
@@ -534,6 +571,12 @@ def main() -> int:
         "alerts",
     }:
         errors.append("dashboard data template top-level schema mismatch")
+    if dashboard_data.get("schema_version") != 2 or isinstance(
+        dashboard_data.get("schema_version"), bool
+    ):
+        errors.append("dashboard data template must use integer schema_version 2")
+    if dashboard_data.get("revision") != 0 or isinstance(dashboard_data.get("revision"), bool):
+        errors.append("dashboard data template must start at integer revision 0")
     if dashboard_data.get("run", {}).get("codex_usage_band") != "MODERATE":
         errors.append("dashboard data template lacks qualitative Codex usage")
     for term in (
@@ -544,6 +587,9 @@ def main() -> int:
         "no-store",
         "healthz",
         "is_loopback",
+        "instance_id",
+        "expected_instance_id",
+        "status revision must increase",
     ):
         if term not in dashboard_script:
             errors.append(f"dashboard helper missing safety mechanism: {term}")
@@ -587,9 +633,51 @@ def main() -> int:
     for term in (
         "validate_data", "os.replace", "DATA_MARKER", "SAFE_ID", "_safe_source_url",
         "_safe_relative_link", "expected_run_id", "MAX_DATA_BYTES",
+        "expected_template_sha256", "expected_data_sha256",
+        "canonical accepted rendering", "_verify_artifact_targets",
+        "must exactly match the research explorer's directory",
     ):
         if term not in explorer_script:
             errors.append(f"research explorer helper missing safety mechanism: {term}")
+    for term in (
+        "SEND_INTENT",
+        "OUTCOME_UNKNOWN",
+        "expected_revision",
+        "BEGIN IMMEDIATE",
+        "automatic_resend_allowed",
+        "O_NOFOLLOW",
+        "EVENT_SAFETY_RESERVE",
+        "rollover_required",
+        "RECOVERY_ONLY",
+    ):
+        if term not in run_state_script:
+            errors.append(f"run-state helper missing transaction mechanism: {term}")
+    state_handoff_flat = re.sub(r"\s+", " ", state_handoff)
+    for term in (
+        "PORTABLE_IMMUTABLE_REVISIONS",
+        "current.json",
+        "prior revision SHA-256",
+        "freeze new input",
+        "EVENT_CAPACITY_ROLLOVER",
+    ):
+        if term not in state_handoff_flat:
+            errors.append(f"portable run-state/rollover contract missing: {term}")
+    for term in (
+        "inspect_zip_path",
+        "max_expanded_bytes",
+        "max_compressed_bytes",
+        "max_ratio",
+        "O_NOFOLLOW",
+        "authorization_state",
+        "OUTCOME_UNKNOWN",
+        "OUTCOME_UNKNOWN_RETAINED",
+        "manifests/intake-state",
+        "reconcile_intake",
+        "_intake_lock",
+        "hashlib.sha256",
+    ):
+        if term not in artifact_store_script:
+            errors.append(f"artifact-store helper missing safety mechanism: {term}")
     data_marker = "__RESEARCH_EXPLORER_DATA__"
     if explorer_html.count(data_marker) != 1:
         errors.append("research explorer HTML must contain one data marker")
@@ -719,6 +807,7 @@ def main() -> int:
 
     checks = (
         f"all {len(EXPECTED)} required files and no unexpected files",
+        "complete Apache-2.0 license included in the installable skill",
         "no symlinks, special files, or unjustified runtime scripts",
         "every file non-empty, UTF-8, newline-terminated, and free of scaffold markers",
         "SKILL.md name/frontmatter/description activation boundary",
@@ -740,6 +829,11 @@ def main() -> int:
         "four independently recorded Linux control layers and macOS/Windows truth boundaries",
         "copy-only dashboard help controls and confirmation-gated recoverable uninstall",
         "self-contained accepted-research explorer schema, traceability, and offline boundary",
+        "executable runtime-helper smoke tests and durable state/artifact safety mechanisms",
+        "write-ahead artifact intake lineage and interruption reconciliation",
+        "portable immutable run-state fallback and reserved-capacity rollover contract",
+        "dashboard schema v2 revisions and exact managed-server instance identity",
+        "canonical explorer verification bound to accepted template and data hashes",
     )
     for check in checks:
         print(f"PASS: {check}")
