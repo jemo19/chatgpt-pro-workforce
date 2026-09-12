@@ -1,6 +1,6 @@
 ---
 name: chatgpt-pro-workforce
-description: Coordinate ChatGPT Pro browser worker lanes for research, review, analysis, or artifact production. Use for a requested Pro workforce; not ordinary coding or reading/following up one existing chat.
+description: Coordinate ChatGPT Pro browser worker lanes when the user explicitly requests a Pro workforce. Do not use for ordinary browser work, simple questions, routine coding, or reading/following up one existing chat.
 ---
 
 # ChatGPT Pro Workforce
