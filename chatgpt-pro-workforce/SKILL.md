@@ -1,6 +1,6 @@
 ---
 name: chatgpt-pro-workforce
-description: Orchestrate ordinary logged-in ChatGPT Pro browser conversations as bounded external workers when the user explicitly requests a Pro workforce or independent research, review, analysis, calculation, synthesis, or artifact lanes add material value. Do not use for ordinary browser work, simple questions, or tasks Codex can efficiently complete locally.
+description: Coordinate ChatGPT Pro browser worker lanes for research, review, analysis, or artifact production. Use for a requested Pro workforce; not ordinary coding or reading/following up one existing chat.
 ---
 
 # ChatGPT Pro Workforce
